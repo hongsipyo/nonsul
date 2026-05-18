@@ -4,11 +4,12 @@ import {
   ADVANCED_POINTS,
   CRITICISM_TOOLS,
 } from '@/lib/constants/scoring-points';
+import { getTeachingMethodologyContext } from '@/lib/constants/teaching-methodology';
 
-export function buildRubricGenerationPrompt(examText: string): string {
+export function buildRubricGenerationPrompt(examText: string, universityNote?: string): string {
   return `당신은 대학 인문논술 채점기준표를 작성하는 전문가입니다.
 
-## 득점포인트 체계 (이 체계에 맞춰 채점기준을 만들어야 합니다)
+## 득점포인트 체계 (이 체계에 맞춰 채점기준을 만들어야 합니다 — 이것이 메인 틀)
 
 ### 보편적 득점포인트 (모든 문제에 적용)
 ${UNIVERSAL_POINTS.map((p) => `- ${p.name}: ${p.description}\n  체크리스트: ${p.checklist.join(' / ')}`).join('\n')}
@@ -22,6 +23,9 @@ ${ADVANCED_POINTS.map((p) => `- ${p.name}: ${p.description}`).join('\n')}
 ### 4대 비판 도구 (비판 문제에 적용)
 ${CRITICISM_TOOLS.map((t) => `- ${t.name}: ${t.description}`).join('\n')}
 
+${getTeachingMethodologyContext()}
+
+${universityNote ? `## 대학별 채점 참고사항\n${universityNote}\n` : ''}
 ## 시험 원문
 ${examText}
 

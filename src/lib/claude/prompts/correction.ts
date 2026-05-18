@@ -7,6 +7,7 @@ import {
   SENTENCE_QUALITY_DEDUCTIONS,
   TYPE_BONUS_CRITERIA,
 } from '@/lib/constants/scoring-points';
+import { getTeachingMethodologyContext } from '@/lib/constants/teaching-methodology';
 import type { RubricItem } from '@/types/exam';
 
 export function buildCorrectionSystemPrompt(): string {
@@ -92,6 +93,8 @@ ${THINKING_SKILLS.map((s) => `- ${s.name}: ${s.description}`).join('\n')}
 
 ## 4대 비판 도구
 ${CRITICISM_TOOLS.map((t) => `- ${t.name}: ${t.description} (예: ${t.example})`).join('\n')}
+
+${getTeachingMethodologyContext()}
 
 ## 출력 형식 (JSON)
 {

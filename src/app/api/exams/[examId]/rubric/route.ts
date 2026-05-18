@@ -36,7 +36,7 @@ export async function POST(
 
   try {
     const examText = examToText(exam.parsed_passages, exam.parsed_questions || []);
-    const prompt = buildRubricGenerationPrompt(examText);
+    const prompt = buildRubricGenerationPrompt(examText, exam.scoring_note || undefined);
 
     const rubricData = await generateJSON({ prompt });
 

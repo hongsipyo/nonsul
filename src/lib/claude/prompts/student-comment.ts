@@ -2,6 +2,8 @@
  * 학생별 종합 코멘트 생성 프롬프트
  * 여러 회차 첨삭 결과를 종합하여 학생에게 줄 피드백 생성
  */
+import { getTeachingMethodologyContext } from '@/lib/constants/teaching-methodology';
+
 export function buildStudentCommentPrompt(params: {
   studentName: string;
   corrections: {
@@ -21,6 +23,14 @@ export function buildStudentCommentPrompt(params: {
 - 격려하는 톤, 구체적인 칭찬
 - 반복되는 약점은 부드럽지만 명확하게 지적
 - 다음 목표를 구체적으로 제시
+
+## 역량 평가 기준 (상담기록지 양식 기반)
+- 독해 능력: 제시문 이해 속도와 정확도
+- 어휘력: 논술 답안 구성에 필요한 어휘 수준
+- 문장 및 한국어 사용 능력: 문법, 정서법, 문장 구조
+- "상"은 합격 수준 답안 작성 가능을 의미
+
+${getTeachingMethodologyContext()}
 
 ## 학생: ${params.studentName}
 

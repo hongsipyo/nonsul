@@ -1,3 +1,5 @@
+import { getTeachingMethodologyContext } from '@/lib/constants/teaching-methodology';
+
 export function buildExplanationPrompt(examText: string, rubricJson: string): string {
   return `당신은 대학 인문논술 해설지를 작성하는 전문 강사입니다.
 
@@ -17,9 +19,11 @@ export function buildExplanationPrompt(examText: string, rubricJson: string): st
 
 ### 3. 문제해결 (각 문제별)
 - 답안 구조 다이어그램 (어떤 순서로 써야 하는지)
+- 문제 유형 파악 후 접근법 안내 (요약형/비교형/분류형/논리형/비판형/적용형/복합형)
 - 비판 문제의 경우: 비판기준 정리 (①~⑤ 번호)
   - 목적오류, 역효과, 고비용, 대비가치 중 적용 가능한 것
 - 표/그래프 해석 (해당 시)
+- "관점"이 요구되면: "무엇을 중요시하는가"를 기준으로 관점 도출
 
 ### 4. 예시답안 (각 문제별)
 - 분량 조건에 맞는 완성된 예시답안
@@ -27,6 +31,8 @@ export function buildExplanationPrompt(examText: string, rubricJson: string): st
 
 ### 5. 요약 연습 (보너스)
 - 100자 요약 / 200자 요약 연습 문제 제시
+
+${getTeachingMethodologyContext()}
 
 ## 시험 원문
 ${examText}

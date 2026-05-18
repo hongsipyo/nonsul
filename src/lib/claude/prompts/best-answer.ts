@@ -1,3 +1,5 @@
+import { getTeachingMethodologyContext } from '@/lib/constants/teaching-methodology';
+
 export function buildBestAnswerSelectionPrompt(params: {
   examText: string;
   rubricJson: string;
@@ -17,11 +19,14 @@ ${params.answersWithScores.map((a, i) => `
 ${a.answerText}
 `).join('\n---\n')}
 
+${getTeachingMethodologyContext()}
+
 ## 지시사항
 1. 가장 우수한 답안 1개를 선정하세요
 2. 선정 근거를 구체적으로 작성하세요 (어떤 점이 다른 답안보다 뛰어난지)
 3. 우수답안이지만 아쉬운 점도 짚어주세요
 4. 다른 학생들이 참고할 포인트를 정리하세요
+5. 4단계 사고흐름(요약→공통점→차이점→관점) 수행 여부도 평가에 반영하세요
 
 ## 출력 형식 (JSON)
 {
