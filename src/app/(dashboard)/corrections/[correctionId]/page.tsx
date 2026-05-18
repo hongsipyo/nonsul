@@ -18,6 +18,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import Link from 'next/link';
+import { RedPenViewer } from '@/components/correction/red-pen-viewer';
 
 interface CorrectionData {
   id: string;
@@ -266,14 +267,25 @@ export default function CorrectionDetailPage() {
           <div className="grid gap-6 lg:grid-cols-3">
             {/* ===== LEFT: 코멘트 전체 ===== */}
             <div className="lg:col-span-2 space-y-4">
-              {/* Answer Images */}
+              {/* Answer Images with Red Pen Overlay */}
               {data.student_answers?.answer_images?.map((img) => (
                 <Card key={img.page}>
-                  <CardContent className="p-2">
-                    <img
-                      src={img.url}
-                      alt={`답안 ${img.page}페이지`}
-                      className="w-full rounded"
+                  <CardContent className="p-3">
+                    <RedPenViewer
+                      imageUrl={img.url}
+                      imagePage={img.page}
+                      comments={comments.map((c) => ({
+                        text: c.text,
+                        type: c.type,
+                        y_position: c.y_position,
+                      }))}
+                      answerOutline={data.answer_outline}
+                      summary={data.summary}
+                      strengths={data.strengths}
+                      improvements={data.improvements}
+                      brand="프로세스"
+                      studentName={data.student_answers?.student_name}
+                      examTitle={data.exams?.title}
                     />
                   </CardContent>
                 </Card>
