@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateExamPptx } from '@/lib/export/pptx-generator';
-import { getClaudeClient } from '@/lib/claude/client';
+import { generateJSON } from '@/lib/ai/client';
 import { buildExplanationPrompt } from '@/lib/claude/prompts/explanation-generation';
 import type { Passage, Question, BrandType } from '@/types/exam';
 
@@ -79,22 +79,9 @@ export async function POST(
       const examText = examToText(exam.parsed_passages, exam.parsed_questions || []);
       const rubricJson = rubric ? JSON.stringify(rubric.items) : '채점기준 없음';
 
-      const claude = getClaudeClient();
-      const response = await claude.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: buildExplanationPrompt(examText, rubricJson) }],
+      const explanationData = await generateJSON({
+        prompt: buildExplanationPrompt(examText, rubricJson),
       });
-
-      const responseText = response.content
-        .filter((block) => block.type === 'text')
-        .map((block) => (block as any).text)
-        .join('');
-
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('AI 응답 파싱 실패');
-
-      const explanationData = JSON.parse(jsonMatch[0]);
 
       await supabase.from('generated_materials').insert({
         exam_id: examId,

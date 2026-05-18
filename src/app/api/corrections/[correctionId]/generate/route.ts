@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getClaudeClient } from '@/lib/claude/client';
+import { generateJSON } from '@/lib/ai/client';
 import {
   buildCorrectionSystemPrompt,
   buildCorrectionUserPrompt,
@@ -25,7 +25,6 @@ export async function POST(
   const { correctionId } = await params;
   const supabase = await createClient();
 
-  // 1. Get correction + answer + exam + rubric
   const { data: correction } = await supabase
     .from('corrections')
     .select('*, student_answers(*), exams(*)')
@@ -43,18 +42,15 @@ export async function POST(
     return NextResponse.json({ error: '시험 파싱 데이터 또는 답안 이미지가 없습니다' }, { status: 400 });
   }
 
-  // Update status
   await supabase.from('corrections').update({ status: 'processing' }).eq('id', correctionId);
 
   try {
-    // 2. Get rubric
     const { data: rubric } = await supabase
       .from('rubrics')
       .select('*')
       .eq('exam_id', exam.id)
       .single();
 
-    // 3. Build prompts
     const examText = examToText(exam.parsed_passages, exam.parsed_questions || []);
     const systemPrompt = buildCorrectionSystemPrompt();
     const userPrompt = buildCorrectionUserPrompt({
@@ -62,10 +58,9 @@ export async function POST(
       rubric: rubric?.items,
     });
 
-    // 4. Build image content blocks for answer images
-    const imageBlocks = [];
+    // Download answer images
+    const images = [];
     for (const img of answer.answer_images) {
-      // Download image from storage
       const { data: imgData } = await supabase.storage
         .from('answer-images')
         .download(img.storage_path);
@@ -74,61 +69,30 @@ export async function POST(
         const buffer = Buffer.from(await imgData.arrayBuffer());
         const base64 = buffer.toString('base64');
         const ext = img.storage_path.split('.').pop()?.toLowerCase();
-        const mediaType = ext === 'png' ? 'image/png' :
-          ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' :
-          ext === 'heic' ? 'image/jpeg' : 'image/jpeg';
+        const mimeType = ext === 'png' ? 'image/png' :
+          ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/jpeg';
 
-        imageBlocks.push({
-          type: 'image' as const,
-          source: {
-            type: 'base64' as const,
-            media_type: mediaType as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
-            data: base64,
-          },
-        });
+        images.push({ base64, mimeType });
       }
     }
 
-    // 5. Call Claude
-    const claude = getClaudeClient();
-    const response = await claude.messages.create({
-      model: 'claude-opus-4-20250514',
-      max_tokens: 8000,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            ...imageBlocks,
-            { type: 'text', text: userPrompt },
-          ],
-        },
-      ],
+    const result = await generateJSON({
+      systemPrompt,
+      prompt: userPrompt,
+      images,
     });
 
-    // 6. Parse response
-    const responseText = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as any).text)
-      .join('');
-
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AI 응답에서 JSON을 찾을 수 없습니다');
-
-    const result = JSON.parse(jsonMatch[0]);
-
-    // 7. Update correction
     await supabase
       .from('corrections')
       .update({
-        margin_comments: result.margin_comments,
-        scores: result.scores,
-        total_score: result.total_score,
-        grade: result.grade,
-        summary: result.summary,
-        answer_outline: result.answer_outline,
-        strengths: result.strengths,
-        improvements: result.improvements,
+        margin_comments: (result as any).margin_comments,
+        scores: (result as any).scores,
+        total_score: (result as any).total_score,
+        grade: (result as any).grade,
+        summary: (result as any).summary,
+        answer_outline: (result as any).answer_outline,
+        strengths: (result as any).strengths,
+        improvements: (result as any).improvements,
         status: 'completed',
         updated_at: new Date().toISOString(),
       })

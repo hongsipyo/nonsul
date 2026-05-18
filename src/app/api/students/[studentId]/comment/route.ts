@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getClaudeClient } from '@/lib/claude/client';
+import { generateJSON } from "@/lib/ai/client";
 import { buildStudentCommentPrompt } from '@/lib/claude/prompts/student-comment';
 
 export async function POST(
@@ -60,22 +60,8 @@ export async function POST(
       })),
     });
 
-    const claude = getClaudeClient();
-    const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const text = response.content
-      .filter((b) => b.type === 'text')
-      .map((b) => (b as any).text)
-      .join('');
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON 파싱 실패');
-
-    return NextResponse.json(JSON.parse(jsonMatch[0]));
+    const result = await generateJSON({ prompt });
+    return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : '코멘트 생성 오류';
     return NextResponse.json({ error: message }, { status: 500 });

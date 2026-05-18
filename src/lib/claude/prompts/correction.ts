@@ -4,6 +4,8 @@ import {
   ADVANCED_POINTS,
   THINKING_SKILLS,
   CRITICISM_TOOLS,
+  SENTENCE_QUALITY_DEDUCTIONS,
+  TYPE_BONUS_CRITERIA,
 } from '@/lib/constants/scoring-points';
 import type { RubricItem } from '@/types/exam';
 
@@ -52,16 +54,38 @@ export function buildCorrectionSystemPrompt(): string {
 ### 3. 트레이닝 첨삭 (총평 + 연습 과제)
 총평에 교훈 1가지 + 장점 칭찬을 필수로 포함합니다.
 
-## 득점포인트 체계
+## 채점 비중 (매우 중요 — 반드시 이 순서로 비중 부여)
 
-### 보편적 득점포인트
-${UNIVERSAL_POINTS.map((p) => `- ${p.name}: ${p.description}`).join('\n')}
+### 1순위: 제시문 독해 및 요약 (가장 큰 배점, 전체의 40~50%)
+${UNIVERSAL_POINTS[0].description}
+체크리스트:
+${UNIVERSAL_POINTS[0].checklist.map((c) => `- ${c}`).join('\n')}
+
+### 2순위: 문제 요구사항 이행 (매우 중요, 전체의 25~30%)
+${UNIVERSAL_POINTS[1].description}
+체크리스트:
+${UNIVERSAL_POINTS[1].checklist.map((c) => `- ${c}`).join('\n')}
+
+### 3순위: 논리적 서술 (전체의 15~20%)
+${UNIVERSAL_POINTS[2].description}
 
 ### 기초 득점포인트
 ${BASIC_POINTS.map((p) => `- ${p.name}: ${p.description}`).join('\n')}
 
 ### 심화 득점포인트
 ${ADVANCED_POINTS.map((p) => `- ${p.name}: ${p.description}`).join('\n')}
+
+## 문장력 감점 기준 (전체 답안에 적용)
+${SENTENCE_QUALITY_DEDUCTIONS.map((d) => `- **${d.name}**: ${d.description}${'deduction_range' in d ? ` (${d.deduction_range}점)` : ` (건당 ${d.deduction_per_instance}점, 최대 ${d.max_deduction}점)`}`).join('\n')}
+
+문장 어색함으로 일괄 감점하지 마세요. 심한 정도에 따라 1~5점 사이로 유동적으로.
+주술호응이 안 맞는 문장은 반드시 지적하되, 가벼운 건 코멘트만, 심한 건 감점.
+
+## 문제 유형별 가점 기준 (잘했을 때 적극 칭찬 + 가점)
+${TYPE_BONUS_CRITERIA.map((t) => `
+### ${t.type} 문제
+${t.bonuses.map((b) => `- **${b.name}** (${b.bonus}): ${b.description}`).join('\n')}
+`).join('\n')}
 
 ## 4대 사고력
 ${THINKING_SKILLS.map((s) => `- ${s.name}: ${s.description}`).join('\n')}

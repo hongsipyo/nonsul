@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getClaudeClient } from '@/lib/claude/client';
+import { generateJSON } from '@/lib/ai/client';
 import { buildRubricGenerationPrompt } from '@/lib/claude/prompts/rubric-generation';
 import type { Passage, Question } from '@/types/exam';
 
@@ -38,22 +38,7 @@ export async function POST(
     const examText = examToText(exam.parsed_passages, exam.parsed_questions || []);
     const prompt = buildRubricGenerationPrompt(examText);
 
-    const claude = getClaudeClient();
-    const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const responseText = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as any).text)
-      .join('');
-
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AI 응답에서 JSON을 찾을 수 없습니다');
-
-    const rubricData = JSON.parse(jsonMatch[0]);
+    const rubricData = await generateJSON({ prompt });
 
     // Upsert rubric
     const { data: existing } = await supabase
