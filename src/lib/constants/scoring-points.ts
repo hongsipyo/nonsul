@@ -116,19 +116,24 @@ export const TYPE_BONUS_CRITERIA = [
     type: '비판',
     bonuses: [
       {
-        name: '논점 명확 + 근거 연결',
-        description: '비판의 논점이 명확하고 근거 연결이 잘 되어있는 경우',
-        bonus: '+1~3',
+        name: '비판 논거 뚜렷함',
+        description: '비판의 논점이 명확하고 근거 연결이 탄탄한 경우. 논제의 한계를 구체적으로 짚어냈을 때.',
+        bonus: '+5~10',
       },
       {
         name: '논점 내 부작용 비판',
         description: '하나의 논점 자체에서 나올 수 있는 부작용을 가지고 비판한 경우',
-        bonus: '+1~2',
+        bonus: '+3~5',
       },
       {
         name: '보편적 가치 호소',
         description: '인류 보편의 근거(인권, 자유, 평등, 정의 등)에 따라 호소하며 비판한 경우',
-        bonus: '+1~2',
+        bonus: '+3~5',
+      },
+      {
+        name: '현실적 대안 제시',
+        description: '단순히 "인식개선" 같은 추상적 대안이 아니라, 사회에 대한 이해를 바탕으로 구체적이고 현실적인 대안을 제시한 경우',
+        bonus: '+5',
       },
     ],
   },
@@ -138,7 +143,7 @@ export const TYPE_BONUS_CRITERIA = [
       {
         name: '대립 관점 지적',
         description: '한 관점에서 대립되는 상반된 관점이 있는 지점을 잘 지적한 경우',
-        bonus: '+1~3',
+        bonus: '+5~10',
       },
     ],
   },
@@ -146,11 +151,56 @@ export const TYPE_BONUS_CRITERIA = [
     type: '비교',
     bonuses: [
       {
-        name: '대비와 분류',
-        description: '서로 다른 두 관점을 대비하고 분류하여 공통점과 차이점을 명확히 지적한 경우',
-        bonus: '+1~3',
+        name: '대비 구조 잘 잡음',
+        description: '서로 다른 두 관점의 이항대립 구도를 정확히 파악하고, 공통점과 차이점을 명확히 분류·지적한 경우',
+        bonus: '+5~10',
       },
     ],
+  },
+  {
+    type: '공통',
+    bonuses: [
+      {
+        name: '제시문 독해 탁월',
+        description: '제시문의 핵심을 정확히 포착하여 대부분의 사람이 동의할 수 있는 통찰을 빚어낸 경우. 제시문 내 이항대립 이해가 뚜렷한 경우.',
+        bonus: '+5~10',
+      },
+      {
+        name: '1-2-3 논증 구조',
+        description: '사례(Fact) → 1차 해석(Analysis) → 2차 의미(Conclusion) 순서가 명확한 경우',
+        bonus: '+3~5',
+      },
+      {
+        name: '표현의 독창성',
+        description: '제시문 문장을 단순 복제하지 않고 자신의 언어로 정확하게 재구성(Paraphrasing)한 경우. 적확한 한자어 사용.',
+        bonus: '+2~3',
+      },
+    ],
+  },
+] as const;
+
+// =============================================
+// 추가 감점 기준 (브리핑 기반)
+// =============================================
+export const ADDITIONAL_DEDUCTIONS = [
+  {
+    name: '단정적 표현 사용',
+    description: "'무조건', '반드시', '항상', '절대로', '쉽게' 등 100% 확신형 부사 사용",
+    deduction_per_instance: -1,
+    max_deduction: -3,
+    feedback: "'무조건'이라는 단어는 논리의 퇴로를 차단합니다. 인문학적 성찰은 100%의 확신보다 개연성 있는 설득력에서 나옵니다.",
+  },
+  {
+    name: '제시문 문장 그대로 베끼기',
+    description: '제시문의 문장을 그대로 옮겨 쓰거나 구조가 거의 동일한 문장 반복',
+    deduction_range: '-5~-10',
+    feedback: '제시문의 표현을 자신만의 언어로 재구성하세요.',
+  },
+  {
+    name: '현학적 표현 남용',
+    description: '맥락에서 벗어난 지나치게 어려운 한자어나 현학적 표현 사용',
+    deduction_per_instance: -2,
+    max_deduction: -5,
   },
 ] as const;
 

@@ -12,6 +12,7 @@ export default function ExamUploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [university, setUniversity] = useState('');
+  const [scoringNote, setScoringNote] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'parsing' | 'done' | 'error'>('idle');
@@ -132,6 +133,18 @@ export default function ExamUploadPage() {
                 onChange={(e) => setUniversity(e.target.value)}
                 placeholder="예: 중앙대학교"
               />
+            </div>
+            <div>
+              <label className="text-sm font-medium">대학별 채점 코멘트 (선택)</label>
+              <textarea
+                value={scoringNote}
+                onChange={(e) => setScoringNote(e.target.value)}
+                placeholder="예: 경희대 사회는 강력한 비판/옹호 허용, 수리논술 시사점 코멘트 중요. 연세대는 이항대립 이해 필수."
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm min-h-[80px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-zinc-400 mt-1">
+                여기 적은 내용이 채점기준 생성과 첨삭에 반영됩니다.
+              </p>
             </div>
           </div>
 
