@@ -76,10 +76,24 @@ export default function StudentDetailPage() {
             {student.target_university && <span>· 목표: {student.target_university}</span>}
           </div>
         </div>
-        <Button onClick={handleGenerateComment} disabled={generatingComment || corrections.length === 0}>
-          {generatingComment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
-          AI 종합 코멘트 생성
-        </Button>
+        <div className="flex gap-2">
+          <Link href={`/students/${studentId}/transcript`}>
+            <Button variant="outline" size="sm">
+              <TrendingUp className="mr-1 h-4 w-4" />
+              성적표
+            </Button>
+          </Link>
+          <Link href={`/students/${studentId}/report`}>
+            <Button variant="outline" size="sm">
+              <Star className="mr-1 h-4 w-4" />
+              상담기록지
+            </Button>
+          </Link>
+          <Button onClick={handleGenerateComment} disabled={generatingComment || corrections.length === 0}>
+            {generatingComment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+            AI 코멘트
+          </Button>
+        </div>
       </div>
 
       {/* AI Comment */}

@@ -105,8 +105,129 @@ export default function StudentReportPage() {
     }
   };
 
-  const handleDownloadPdf = () => {
-    alert('PDF 다운로드 기능은 추후 지원 예정입니다.');
+  const handleDownloadPdf = async () => {
+    const jsPDF = (await import('jspdf')).default;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    // Load Pretendard
+    const [regularBuf, boldBuf] = await Promise.all([
+      fetch('/fonts/Pretendard-Regular.ttf').then((r) => r.arrayBuffer()),
+      fetch('/fonts/Pretendard-Bold.ttf').then((r) => r.arrayBuffer()),
+    ]);
+    const toBase64 = (buf: ArrayBuffer) => {
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary);
+    };
+    doc.addFileToVFS('Pretendard-Regular.ttf', toBase64(regularBuf));
+    doc.addFont('Pretendard-Regular.ttf', 'Pretendard', 'normal');
+    doc.addFileToVFS('Pretendard-Bold.ttf', toBase64(boldBuf));
+    doc.addFont('Pretendard-Bold.ttf', 'Pretendard', 'bold');
+    doc.setFont('Pretendard', 'normal');
+
+    const margin = 15;
+    const w = 180;
+    let y = margin;
+
+    // Title
+    doc.setFont('Pretendard', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(0, 0, 0);
+    doc.text('대입논술 기본반 수강생 상담기록지', 105, y, { align: 'center' });
+    y += 10;
+
+    doc.setFont('Pretendard', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`상담 일자: ${report.counseling_date}`, margin, y);
+    doc.text(`학교 / 이름: ${report.school ? report.school + ' / ' : ''}${report.student_name}`, margin + 90, y);
+    y += 8;
+
+    doc.setDrawColor(0); doc.setLineWidth(0.5);
+    doc.line(margin, y, margin + w, y);
+    y += 6;
+
+    // Section 1
+    doc.setFont('Pretendard', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text('1. 현재 역량 분석', margin, y);
+    y += 7;
+
+    doc.setFont('Pretendard', 'normal');
+    doc.setFontSize(9);
+    for (const ability of report.abilities) {
+      doc.setTextColor(80, 80, 80);
+      doc.text(ability.label, margin + 4, y);
+      doc.setTextColor(0, 0, 0);
+      doc.text(ability.grade, margin + 70, y);
+      y += 6;
+    }
+    doc.setFont('Pretendard', 'bold');
+    doc.text('현재 장점 종합', margin + 4, y);
+    doc.text(report.current_strengths_summary, margin + 70, y);
+    y += 8;
+
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, margin + w, y);
+    y += 6;
+
+    // Section 2
+    doc.setFont('Pretendard', 'bold');
+    doc.setFontSize(11);
+    doc.text('2. 장점 / 보완할 점', margin, y);
+    y += 7;
+
+    doc.setFont('Pretendard', 'normal');
+    doc.setFontSize(9);
+
+    // Left: Strengths
+    doc.setTextColor(22, 163, 74);
+    doc.text('장점:', margin + 4, y);
+    doc.setTextColor(60, 60, 60);
+    let sy = y + 5;
+    for (const s of report.strengths) {
+      const lines = doc.splitTextToSize(`• ${s}`, 80);
+      doc.text(lines, margin + 4, sy);
+      sy += lines.length * 4.5;
+    }
+
+    // Right: Improvements
+    doc.setTextColor(220, 38, 38);
+    doc.text('보완할 점:', margin + 95, y);
+    doc.setTextColor(60, 60, 60);
+    let iy = y + 5;
+    for (const imp of report.improvements) {
+      const lines = doc.splitTextToSize(`• ${imp}`, 80);
+      doc.text(lines, margin + 95, iy);
+      iy += lines.length * 4.5;
+    }
+
+    y = Math.max(sy, iy) + 5;
+    doc.line(margin, y, margin + w, y);
+    y += 6;
+
+    // Section 3
+    doc.setFont('Pretendard', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text('3. 총평', margin, y);
+    y += 7;
+
+    doc.setFont('Pretendard', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    const commentLines = doc.splitTextToSize(report.overall_comment, w);
+    doc.text(commentLines, margin + 4, y);
+    y += commentLines.length * 4.5 + 8;
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 160);
+    doc.text('대입논술 기본반 | 상담기록지 | 프로세스 논술학원', 105, 290, { align: 'center' });
+
+    doc.save(`${report.student_name}_상담기록지.pdf`);
   };
 
   if (loading) {
