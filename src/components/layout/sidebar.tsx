@@ -9,7 +9,9 @@ import {
   Users,
   Settings,
   LayoutDashboard,
+  LogOut,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 const nav = [
   { href: '/', label: '대시보드', icon: LayoutDashboard },
@@ -47,8 +49,18 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="border-t border-zinc-800 p-4 text-xs text-zinc-500">
-        홍시표T
+      <div className="border-t border-zinc-800 p-3">
+        <button
+          onClick={async () => {
+            const supabase = createClient();
+            await supabase.auth.signOut();
+            window.location.href = '/login';
+          }}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          로그아웃
+        </button>
       </div>
     </aside>
   );
