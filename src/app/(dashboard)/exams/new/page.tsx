@@ -1,17 +1,21 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, FileText, Loader2 } from 'lucide-react';
+import { Upload, FileText, Loader2, CheckCircle } from 'lucide-react';
 
 export default function ExamUploadPage() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [university, setUniversity] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'uploading' | 'parsing' | 'done' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -34,8 +38,39 @@ export default function ExamUploadPage() {
   const handleSubmit = async () => {
     if (!file || !title) return;
     setUploading(true);
-    // TODO: Upload to Supabase Storage + create exam record + trigger AI parse
-    setTimeout(() => setUploading(false), 2000);
+    setStatus('uploading');
+    setErrorMsg('');
+
+    try {
+      // 1. Upload PDF + create exam record
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', title);
+      formData.append('university', university);
+
+      const uploadRes = await fetch('/api/exams', { method: 'POST', body: formData });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json();
+        throw new Error(err.error || '업로드 실패');
+      }
+      const exam = await uploadRes.json();
+
+      // 2. Trigger AI parsing
+      setStatus('parsing');
+      const parseRes = await fetch(`/api/exams/${exam.id}/parse`, { method: 'POST' });
+      if (!parseRes.ok) {
+        const err = await parseRes.json();
+        throw new Error(err.error || '파싱 실패');
+      }
+
+      setStatus('done');
+      setTimeout(() => router.push(`/exams/${exam.id}`), 1500);
+    } catch (err) {
+      setStatus('error');
+      setErrorMsg(err instanceof Error ? err.message : '오류 발생');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -100,20 +135,38 @@ export default function ExamUploadPage() {
             </div>
           </div>
 
-          <Button
-            onClick={handleSubmit}
-            disabled={!file || !title || uploading}
-            className="w-full"
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                업로드 중...
-              </>
-            ) : (
-              '업로드 및 AI 파싱 시작'
-            )}
-          </Button>
+          {status === 'error' && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+              {errorMsg}
+            </div>
+          )}
+
+          {status === 'done' ? (
+            <div className="flex items-center justify-center gap-2 rounded-md bg-green-50 p-3 text-green-700">
+              <CheckCircle className="h-5 w-5" />
+              파싱 완료! 시험 상세 페이지로 이동합니다...
+            </div>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={!file || !title || uploading}
+              className="w-full"
+            >
+              {status === 'uploading' && (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  업로드 중...
+                </>
+              )}
+              {status === 'parsing' && (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  AI 파싱 중... (30초~1분)
+                </>
+              )}
+              {(status === 'idle' || status === 'error') && '업로드 및 AI 파싱 시작'}
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>
