@@ -30,8 +30,10 @@ interface OralResult {
     number: number;
     question_text: string;
     question_type: string;
-    sample_answer: string;
+    model_answer: string;
+    borderline_answer: string;
     answer_structure: string;
+    model_vs_borderline: string;
     follow_up_questions: string[];
     follow_up_answers: string[];
     key_tips: string[];
@@ -261,11 +263,25 @@ export default function OralExamPage() {
                     <p className="text-sm whitespace-pre-wrap">{q.question_text}</p>
                   </div>
 
-                  {/* 예시답안 */}
+                  {/* 모범답안 */}
                   <div className="border-l-4 border-l-emerald-500 bg-emerald-50/30 rounded-r-lg p-4">
-                    <p className="text-sm font-bold text-emerald-800 mb-2">예시답안 (2분)</p>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.sample_answer}</p>
+                    <p className="text-sm font-bold text-emerald-800 mb-2">모범답안 (만점 수준)</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.model_answer}</p>
                   </div>
+
+                  {/* 한계답안 */}
+                  <div className="border-l-4 border-l-amber-500 bg-amber-50/30 rounded-r-lg p-4">
+                    <p className="text-sm font-bold text-amber-800 mb-2">한계답안 (합격선)</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.borderline_answer}</p>
+                  </div>
+
+                  {/* 모범 vs 한계 차이 */}
+                  {q.model_vs_borderline && (
+                    <div className="bg-red-50/50 rounded-lg p-3">
+                      <p className="text-xs font-bold text-red-700 mb-1">점수 갈리는 포인트</p>
+                      <p className="text-sm text-zinc-700">{q.model_vs_borderline}</p>
+                    </div>
+                  )}
 
                   {/* 답변 구조 */}
                   {q.answer_structure && (
