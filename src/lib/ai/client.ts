@@ -1,5 +1,11 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+const MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+] as const;
+
 let client: GoogleGenerativeAI | null = null;
 
 export function getAIClient(): GoogleGenerativeAI {
@@ -20,14 +26,6 @@ export async function generateJSON<T = Record<string, unknown>>(params: {
   pdfBase64?: string;
 }): Promise<T> {
   const ai = getAIClient();
-  const model = ai.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: params.systemPrompt || undefined,
-    generationConfig: {
-      maxOutputTokens: 16000,
-      temperature: 0.3,
-    },
-  });
 
   const parts: any[] = [];
 
@@ -47,13 +45,43 @@ export async function generateJSON<T = Record<string, unknown>>(params: {
 
   parts.push({ text: params.prompt });
 
-  const response = await model.generateContent(parts);
-  const text = response.response.text();
+  // 자동 fallback: 2.5-flash → 2.0-flash → 1.5-flash
+  let lastError: Error | null = null;
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('AI 응답에서 JSON을 찾을 수 없습니다: ' + text.substring(0, 200));
+  for (const modelName of MODELS) {
+    try {
+      const model = ai.getGenerativeModel({
+        model: modelName,
+        systemInstruction: params.systemPrompt || undefined,
+        generationConfig: {
+          maxOutputTokens: 16000,
+          temperature: 0.3,
+        },
+      });
+
+      const response = await model.generateContent(parts);
+      const text = response.response.text();
+
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('AI 응답에서 JSON을 찾을 수 없습니다: ' + text.substring(0, 200));
+      }
+
+      return JSON.parse(jsonMatch[0]) as T;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const msg = lastError.message;
+
+      // 503, 429, quota 에러면 다음 모델로 fallback
+      if (msg.includes('503') || msg.includes('429') || msg.includes('quota') || msg.includes('overloaded') || msg.includes('high demand')) {
+        console.warn(`[AI] ${modelName} 실패 (${msg.substring(0, 80)}), 다음 모델로 시도...`);
+        continue;
+      }
+
+      // 다른 에러는 바로 throw
+      throw lastError;
+    }
   }
 
-  return JSON.parse(jsonMatch[0]) as T;
+  throw lastError || new Error('모든 AI 모델이 실패했습니다');
 }
