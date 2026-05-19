@@ -49,7 +49,7 @@ export async function POST(
       .from('rubrics')
       .select('*')
       .eq('exam_id', exam.id)
-      .single();
+      .maybeSingle();
 
     const examText = examToText(exam.parsed_passages, exam.parsed_questions || []);
     const systemPrompt = buildCorrectionSystemPrompt();
@@ -61,19 +61,26 @@ export async function POST(
     // Download answer images
     const images = [];
     for (const img of answer.answer_images) {
-      const { data: imgData } = await supabase.storage
+      const { data: imgData, error: dlError } = await supabase.storage
         .from('answer-images')
         .download(img.storage_path);
 
-      if (imgData) {
-        const buffer = Buffer.from(await imgData.arrayBuffer());
-        const base64 = buffer.toString('base64');
-        const ext = img.storage_path.split('.').pop()?.toLowerCase();
-        const mimeType = ext === 'png' ? 'image/png' :
-          ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/jpeg';
-
-        images.push({ base64, mimeType });
+      if (dlError || !imgData) {
+        console.error(`답안 이미지 다운로드 실패: ${img.storage_path}`, dlError);
+        continue;
       }
+
+      const buffer = Buffer.from(await imgData.arrayBuffer());
+      const base64 = buffer.toString('base64');
+      const ext = img.storage_path.split('.').pop()?.toLowerCase();
+      const mimeType = ext === 'png' ? 'image/png' :
+        ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/jpeg';
+
+      images.push({ base64, mimeType });
+    }
+
+    if (images.length === 0) {
+      throw new Error('답안 이미지를 다운로드할 수 없습니다');
     }
 
     const result = await generateJSON({

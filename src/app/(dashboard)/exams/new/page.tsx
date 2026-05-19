@@ -48,6 +48,7 @@ export default function ExamUploadPage() {
       formData.append('file', file);
       formData.append('title', title);
       formData.append('university', university);
+      if (scoringNote) formData.append('scoringNote', scoringNote);
 
       const uploadRes = await fetch('/api/exams', { method: 'POST', body: formData });
       if (!uploadRes.ok) {

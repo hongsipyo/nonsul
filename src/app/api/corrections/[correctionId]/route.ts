@@ -27,7 +27,12 @@ export async function PATCH(
   { params }: { params: Promise<{ correctionId: string }> }
 ) {
   const { correctionId } = await params;
-  const body = await req.json();
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 });
+  }
   const supabase = await createClient();
 
   const { data, error } = await supabase

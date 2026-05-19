@@ -14,7 +14,12 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const body = await req.json();
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 });
+  }
 
   const { data, error } = await supabase
     .from('students')

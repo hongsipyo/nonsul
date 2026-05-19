@@ -18,7 +18,14 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const formData = await req.formData();
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 });
+  }
+
   const examId = formData.get('examId') as string;
   const studentName = formData.get('studentName') as string;
   const studentSchool = formData.get('studentSchool') as string;
@@ -28,11 +35,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '시험 ID와 답안 이미지가 필요합니다' }, { status: 400 });
   }
 
-  // 1. Upload answer images
+  // Upload answer images — 파일명은 ASCII로 (한글 파일명 무관)
   const answerImages = [];
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    const fileName = `answers/${examId}/${Date.now()}_${i}.${file.name.split('.').pop()}`;
+    const ext = (file.name.split('.').pop() || 'jpg').replace(/[^\w]/g, '') || 'jpg';
+    const fileName = `answers/${examId}/${Date.now()}_${i}.${ext}`;
+
     const { error: uploadError } = await supabase.storage
       .from('answer-images')
       .upload(fileName, file);
@@ -42,10 +51,13 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: urlData } = supabase.storage.from('answer-images').getPublicUrl(fileName);
-    answerImages.push({ page: i + 1, storage_path: fileName, url: urlData.publicUrl });
+    answerImages.push({
+      page: i + 1,
+      storage_path: fileName,
+      url: urlData?.publicUrl || '',
+    });
   }
 
-  // 2. Create student_answer record
   const { data: answer, error: answerError } = await supabase
     .from('student_answers')
     .insert({
@@ -61,7 +73,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: answerError.message }, { status: 500 });
   }
 
-  // 3. Create correction record (processing status)
   const { data: correction, error: corrError } = await supabase
     .from('corrections')
     .insert({

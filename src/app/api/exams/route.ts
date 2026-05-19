@@ -14,19 +14,26 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const formData = await req.formData();
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 });
+  }
+
   const file = formData.get('file') as File;
   const title = formData.get('title') as string;
   const university = formData.get('university') as string;
+  const scoringNote = formData.get('scoringNote') as string;
 
   if (!file || !title) {
     return NextResponse.json({ error: '파일과 제목이 필요합니다' }, { status: 400 });
   }
 
-  // 1. Upload PDF to Supabase Storage
-  // Supabase Storage는 한글 키를 지원하지 않으므로 영문 변환
-  const ext = file.name.split('.').pop() || 'pdf';
-  const fileName = `${Date.now()}_exam.${ext}`;
+  // Storage 키는 ASCII만 허용 — 한글 파일명 무관하게 타임스탬프 사용
+  const fileName = `${Date.now()}_exam.pdf`;
+
   const { error: uploadError } = await supabase.storage
     .from('exam-pdfs')
     .upload(fileName, file, { contentType: 'application/pdf' });
@@ -37,14 +44,14 @@ export async function POST(req: NextRequest) {
 
   const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(fileName);
 
-  // 2. Create exam record
   const { data: exam, error: insertError } = await supabase
     .from('exams')
     .insert({
       title,
       university: university || null,
+      scoring_note: scoringNote || null,
       original_pdf_path: fileName,
-      original_pdf_url: urlData.publicUrl,
+      original_pdf_url: urlData?.publicUrl || '',
       status: 'uploaded',
     })
     .select()

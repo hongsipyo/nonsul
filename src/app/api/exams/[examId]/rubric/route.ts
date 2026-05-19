@@ -45,7 +45,7 @@ export async function POST(
       .from('rubrics')
       .select('id')
       .eq('exam_id', examId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       await supabase
@@ -78,8 +78,9 @@ export async function GET(
     .from('rubrics')
     .select('*')
     .eq('exam_id', examId)
-    .single();
+    .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: '채점기준이 없습니다' }, { status: 404 });
   return NextResponse.json(data);
 }

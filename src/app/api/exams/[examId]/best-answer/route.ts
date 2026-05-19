@@ -53,7 +53,7 @@ export async function POST(
     .from('rubrics')
     .select('items')
     .eq('exam_id', examId)
-    .single();
+    .maybeSingle();
 
   try {
     const examText = examToText(exam.parsed_passages, exam.parsed_questions || []);

@@ -21,8 +21,15 @@ export async function POST(
   { params }: { params: Promise<{ examId: string }> }
 ) {
   const { examId } = await params;
-  const body = await req.json();
-  const materialType = body.type as string; // 'ppt' | '해설지' | '채점기준표'
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 });
+  }
+
+  const materialType = body.type as string;
   const brand = (body.brand || '프로세스') as BrandType;
 
   const supabase = await createClient();
@@ -38,7 +45,6 @@ export async function POST(
 
   try {
     if (materialType === 'ppt') {
-      // Generate PPTX
       const pptx = generateExamPptx({
         title: exam.title,
         passages: exam.parsed_passages,
@@ -48,34 +54,38 @@ export async function POST(
 
       const buffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer;
 
-      // Upload to storage
       const brandTag = brand === '프로세스' ? 'process' : 'indie';
       const fileName = `ppt/${examId}_${brandTag}_${Date.now()}.pptx`;
-      await supabase.storage.from('materials').upload(fileName, buffer, {
-        contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      });
+
+      const { error: uploadError } = await supabase.storage
+        .from('materials')
+        .upload(fileName, buffer, {
+          contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        });
+
+      if (uploadError) {
+        throw new Error(`PPT 업로드 실패: ${uploadError.message}`);
+      }
 
       const { data: urlData } = supabase.storage.from('materials').getPublicUrl(fileName);
 
-      // Save record
       await supabase.from('generated_materials').insert({
         exam_id: examId,
         type: 'ppt',
         brand,
         file_path: fileName,
-        file_url: urlData.publicUrl,
+        file_url: urlData?.publicUrl || '',
       });
 
-      return NextResponse.json({ success: true, url: urlData.publicUrl, type: 'ppt' });
+      return NextResponse.json({ success: true, url: urlData?.publicUrl, type: 'ppt' });
     }
 
     if (materialType === '해설지') {
-      // Get rubric
       const { data: rubric } = await supabase
         .from('rubrics')
         .select('*')
         .eq('exam_id', examId)
-        .single();
+        .maybeSingle();
 
       const examText = examToText(exam.parsed_passages, exam.parsed_questions || []);
       const rubricJson = rubric ? JSON.stringify(rubric.items) : '채점기준 없음';
