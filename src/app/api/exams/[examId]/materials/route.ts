@@ -50,6 +50,7 @@ export async function POST(
         passages: exam.parsed_passages,
         questions: exam.parsed_questions || [],
         brand,
+        pageImageUrls: exam.parsed_metadata?.page_image_urls || {},
       });
 
       const buffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer;

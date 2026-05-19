@@ -8,6 +8,11 @@ export interface Passage {
   label: string;       // (가), (나), (다)...
   text: string;
   source?: string;
+  has_table?: boolean;
+  has_graph?: boolean;
+  table_markdown?: string;     // markdown 표
+  page_number?: number;        // PDF 원본 페이지 번호
+  page_image_url?: string;     // 해당 페이지 이미지 URL
 }
 
 export interface Question {

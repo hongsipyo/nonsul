@@ -24,7 +24,7 @@ export async function generateJSON<T = Record<string, unknown>>(params: {
     model: 'gemini-2.5-flash',
     systemInstruction: params.systemPrompt || undefined,
     generationConfig: {
-      maxOutputTokens: 8000,
+      maxOutputTokens: 16000,
       temperature: 0.3,
     },
   });
