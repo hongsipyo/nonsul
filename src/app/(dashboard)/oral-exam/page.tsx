@@ -275,14 +275,6 @@ export default function OralExamPage() {
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.borderline_answer}</p>
                   </div>
 
-                  {/* 모범 vs 한계 차이 */}
-                  {q.model_vs_borderline && (
-                    <div className="bg-red-50/50 rounded-lg p-3">
-                      <p className="text-xs font-bold text-red-700 mb-1">점수 갈리는 포인트</p>
-                      <p className="text-sm text-zinc-700">{q.model_vs_borderline}</p>
-                    </div>
-                  )}
-
                   {/* 답변 구조 */}
                   {q.answer_structure && (
                     <div className="bg-blue-50/50 rounded-lg p-3">
