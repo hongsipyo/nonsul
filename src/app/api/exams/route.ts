@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 1. Upload PDF to Supabase Storage
-  const fileName = `${Date.now()}_${file.name}`;
+  // Supabase Storage는 한글 키를 지원하지 않으므로 영문 변환
+  const ext = file.name.split('.').pop() || 'pdf';
+  const fileName = `${Date.now()}_exam.${ext}`;
   const { error: uploadError } = await supabase.storage
     .from('exam-pdfs')
     .upload(fileName, file, { contentType: 'application/pdf' });

@@ -49,7 +49,8 @@ export async function POST(
       const buffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer;
 
       // Upload to storage
-      const fileName = `ppt/${examId}_${brand}_${Date.now()}.pptx`;
+      const brandTag = brand === '프로세스' ? 'process' : 'indie';
+      const fileName = `ppt/${examId}_${brandTag}_${Date.now()}.pptx`;
       await supabase.storage.from('materials').upload(fileName, buffer, {
         contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       });
