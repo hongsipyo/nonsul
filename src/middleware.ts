@@ -29,14 +29,18 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 로그인 안 된 상태에서 대시보드 접근 시 → 로그인으로 리다이렉트
+  // 로그인 안 된 상태 → 보호
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/api') &&
     !request.nextUrl.pathname.startsWith('/_next')
   ) {
+    // API 요청은 401 JSON 반환
+    if (request.nextUrl.pathname.startsWith('/api')) {
+      return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 });
+    }
+    // 페이지 요청은 로그인으로 리다이렉트
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

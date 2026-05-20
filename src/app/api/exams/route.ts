@@ -45,6 +45,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '파일과 제목이 필요합니다' }, { status: 400 });
   }
 
+  // 파일 크기 제한 (20MB)
+  const MAX_FILE_SIZE = 20 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) {
+    return NextResponse.json({ error: '파일 크기가 20MB를 초과합니다' }, { status: 413 });
+  }
+
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
   if (!ALLOWED_EXTENSIONS.has(ext)) {
     return NextResponse.json({ error: `지원하지 않는 파일 형식: .${ext}` }, { status: 400 });

@@ -31,9 +31,17 @@ export async function PATCH(
   }
   const supabase = await createClient();
 
+  // 허용 필드만 화이트리스트 (mass assignment 방지)
+  const allowed: Record<string, unknown> = {};
+  const ALLOWED_FIELDS = ['title', 'university', 'exam_year', 'scoring_note', 'status'];
+  for (const key of ALLOWED_FIELDS) {
+    if (body[key] !== undefined) allowed[key] = body[key];
+  }
+  allowed.updated_at = new Date().toISOString();
+
   const { data, error } = await supabase
     .from('exams')
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update(allowed)
     .eq('id', examId)
     .select()
     .single();
