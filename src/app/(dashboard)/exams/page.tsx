@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileText, Calendar, Loader2 } from 'lucide-react';
+import { Plus, FileText, Calendar, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import type { Exam } from '@/types/exam';
 
@@ -19,6 +19,7 @@ const statusLabel: Record<string, { text: string; variant: 'default' | 'outline'
 export default function ExamsPage() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/exams')
@@ -26,6 +27,22 @@ export default function ExamsPage() {
       .then((data) => setExams(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDelete = async (e: React.MouseEvent, examId: string, title: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`"${title}" 시험을 삭제하시겠습니까?`)) return;
+
+    setDeleting(examId);
+    try {
+      const res = await fetch(`/api/exams/${examId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setExams((prev) => prev.filter((ex) => ex.id !== examId));
+      }
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -47,12 +64,8 @@ export default function ExamsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <FileText className="h-10 w-10 mx-auto text-zinc-300 mb-3" />
-            <p className="text-zinc-500">
-              아직 업로드된 시험이 없습니다.
-            </p>
-            <p className="text-sm text-zinc-400 mt-1">
-              PDF를 업로드하면 AI가 자동으로 제시문과 문제를 파싱합니다.
-            </p>
+            <p className="text-zinc-500">아직 업로드된 시험이 없습니다.</p>
+            <p className="text-sm text-zinc-400 mt-1">파일을 업로드하면 AI가 자동으로 제시문과 문제를 파싱합니다.</p>
           </CardContent>
         </Card>
       ) : (
@@ -61,6 +74,7 @@ export default function ExamsPage() {
             const s = statusLabel[exam.status] || statusLabel.uploaded;
             const passageCount = exam.parsed_passages?.length || 0;
             const questionCount = exam.parsed_questions?.length || 0;
+            const isDeleting = deleting === exam.id;
 
             return (
               <Link key={exam.id} href={`/exams/${exam.id}`}>
@@ -84,7 +98,21 @@ export default function ExamsPage() {
                         </div>
                       </div>
                     </div>
-                    <Badge variant={s.variant}>{s.text}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={s.variant}>{s.text}</Badge>
+                      <button
+                        onClick={(e) => handleDelete(e, exam.id, exam.title)}
+                        disabled={isDeleting}
+                        className="p-1.5 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        title="삭제"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </CardContent>
                 </Card>
               </Link>
