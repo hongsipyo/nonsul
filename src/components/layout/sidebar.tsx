@@ -89,8 +89,8 @@ export function Sidebar() {
 
       {/* 하단 */}
       <div className="border-t border-orange-200 p-3 bg-white/30">
-        <div className="text-center mb-2">
-          <Image src="/logos/process-logo-sm.svg" alt="프로세스 논술" width={120} height={26} className="mx-auto opacity-40" />
+        <div className="text-center text-[10px] text-orange-300 mb-2">
+          🐾 홍시표T 화이팅! 🐾
         </div>
         <button
           onClick={async () => {

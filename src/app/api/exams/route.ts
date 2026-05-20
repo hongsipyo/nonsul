@@ -70,9 +70,13 @@ export async function POST(req: NextRequest) {
 
   const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(fileName);
 
+  // 현재 로그인 사용자 ID
+  const { data: { user } } = await supabase.auth.getUser();
+
   const { data: exam, error: insertError } = await supabase
     .from('exams')
     .insert({
+      user_id: user?.id || null,
       title,
       university: university || null,
       scoring_note: scoringNote || null,
