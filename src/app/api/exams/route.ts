@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '20mb',
+    },
+  },
+};
+
 const MIME_MAP: Record<string, string> = {
   pdf: 'application/pdf',
   hwp: 'application/haansofthwp',

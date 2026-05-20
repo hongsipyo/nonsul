@@ -6,18 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, FileText, Loader2, CheckCircle, ImageIcon, X } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 
 const ACCEPTED_EXTENSIONS = '.pdf,.hwp,.doc,.docx,.heic,.heif,.jpg,.jpeg,.png';
+const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'heic', 'heif'];
+
+function getExt(file: File): string {
+  return file.name.split('.').pop()?.toLowerCase() || '';
+}
 
 function isAcceptedFile(file: File): boolean {
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  return ['pdf', 'hwp', 'doc', 'docx', 'heic', 'heif', 'jpg', 'jpeg', 'png'].includes(ext || '');
+  const ext = getExt(file);
+  return ['pdf', 'hwp', 'doc', 'docx', ...IMAGE_EXTS].includes(ext);
 }
 
 function getFileIcon(file: File) {
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'heic', 'heif'].includes(ext || '')) return ImageIcon;
-  return FileText;
+  return IMAGE_EXTS.includes(getExt(file)) ? ImageIcon : FileText;
 }
 
 function stripExtension(name: string) {
@@ -25,7 +29,42 @@ function stripExtension(name: string) {
 }
 
 function formatSize(bytes: number) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + 'KB';
   return (bytes / 1024 / 1024).toFixed(1) + 'MB';
+}
+
+/**
+ * HEIC → JPEG 변환 + 이미지 압축 (클라이언트 사이드)
+ * Vercel body size 제한(4.5MB) 때문에 프론트에서 미리 압축
+ */
+async function processImageFile(file: File): Promise<File> {
+  const ext = getExt(file);
+
+  // HEIC → JPEG 변환
+  if (ext === 'heic' || ext === 'heif') {
+    const heic2any = (await import('heic2any')).default;
+    const blob = await heic2any({
+      blob: file,
+      toType: 'image/jpeg',
+      quality: 0.9,
+    });
+    const jpegBlob = Array.isArray(blob) ? blob[0] : blob;
+    const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+    file = new File([jpegBlob], newName, { type: 'image/jpeg' });
+  }
+
+  // 이미지 압축: 최대 1.5MB, 최대 3000px (OCR 품질 유지)
+  if (file.size > 1.5 * 1024 * 1024) {
+    file = await imageCompression(file, {
+      maxSizeMB: 1.5,
+      maxWidthOrHeight: 3000,
+      useWebWorker: true,
+      fileType: 'image/jpeg',
+    });
+  }
+
+  return file;
 }
 
 export default function ExamUploadPage() {
@@ -36,15 +75,34 @@ export default function ExamUploadPage() {
   const [scoringNote, setScoringNote] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'parsing' | 'done' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const addFiles = useCallback((newFiles: FileList | File[]) => {
+  const addFiles = useCallback(async (newFiles: FileList | File[]) => {
     const accepted = Array.from(newFiles).filter(isAcceptedFile);
     if (accepted.length === 0) return;
-    setFiles((prev) => [...prev, ...accepted]);
-    if (!title && accepted.length > 0) {
-      setTitle(stripExtension(accepted[0].name));
+
+    // 이미지 파일은 프론트에서 변환/압축
+    setProcessing(true);
+    try {
+      const processed: File[] = [];
+      for (const f of accepted) {
+        if (IMAGE_EXTS.includes(getExt(f))) {
+          processed.push(await processImageFile(f));
+        } else {
+          processed.push(f);
+        }
+      }
+      setFiles((prev) => [...prev, ...processed]);
+      if (!title && processed.length > 0) {
+        setTitle(stripExtension(accepted[0].name));
+      }
+    } catch (err) {
+      setErrorMsg('이미지 처리 중 오류: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
+      setStatus('error');
+    } finally {
+      setProcessing(false);
     }
   }, [title]);
 
@@ -60,7 +118,7 @@ export default function ExamUploadPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) addFiles(e.target.files);
-    e.target.value = ''; // 같은 파일 다시 선택 가능하게
+    e.target.value = '';
   };
 
   const handleSubmit = async () => {
@@ -71,7 +129,6 @@ export default function ExamUploadPage() {
 
     try {
       const formData = new FormData();
-      // 파일이 1개면 기존대로, 여러 개면 모두 append
       for (const f of files) {
         formData.append('files', f);
       }
@@ -81,16 +138,18 @@ export default function ExamUploadPage() {
 
       const uploadRes = await fetch('/api/exams', { method: 'POST', body: formData });
       if (!uploadRes.ok) {
-        const err = await uploadRes.json();
-        throw new Error(err.error || '업로드 실패');
+        let errMsg = '업로드 실패';
+        try { const err = await uploadRes.json(); errMsg = err.error || errMsg; } catch {}
+        throw new Error(errMsg);
       }
       const exam = await uploadRes.json();
 
       setStatus('parsing');
       const parseRes = await fetch(`/api/exams/${exam.id}/parse`, { method: 'POST' });
       if (!parseRes.ok) {
-        const err = await parseRes.json();
-        throw new Error(err.error || '파싱 실패');
+        let errMsg = '파싱 실패';
+        try { const err = await parseRes.json(); errMsg = err.error || errMsg; } catch {}
+        throw new Error(errMsg);
       }
 
       setStatus('done');
@@ -103,6 +162,8 @@ export default function ExamUploadPage() {
     }
   };
 
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">시험 업로드</h1>
@@ -112,7 +173,6 @@ export default function ExamUploadPage() {
           <CardTitle>기출문제 업로드</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* 드래그앤드롭 영역 */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
@@ -122,11 +182,18 @@ export default function ExamUploadPage() {
             }`}
             onClick={() => document.getElementById('file-input')?.click()}
           >
-            <div className="space-y-2">
-              <Upload className="h-10 w-10 mx-auto text-zinc-400" />
-              <p className="text-zinc-500">파일을 드래그하거나 클릭하세요</p>
-              <p className="text-xs text-zinc-400">PDF, HWP, Word, JPG, JPEG, PNG, HEIC — 여러 파일 선택 가능</p>
-            </div>
+            {processing ? (
+              <div className="space-y-2">
+                <Loader2 className="h-10 w-10 mx-auto text-blue-500 animate-spin" />
+                <p className="text-zinc-500">이미지 변환 중...</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Upload className="h-10 w-10 mx-auto text-zinc-400" />
+                <p className="text-zinc-500">파일을 드래그하거나 클릭하세요</p>
+                <p className="text-xs text-zinc-400">PDF, HWP, Word, JPG, JPEG, PNG, HEIC — 여러 파일 선택 가능</p>
+              </div>
+            )}
             <input
               id="file-input"
               type="file"
@@ -137,10 +204,12 @@ export default function ExamUploadPage() {
             />
           </div>
 
-          {/* 파일 목록 */}
           {files.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-zinc-700">{files.length}개 파일 선택됨</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-zinc-700">{files.length}개 파일</p>
+                <p className="text-xs text-zinc-400">총 {formatSize(totalSize)}</p>
+              </div>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {files.map((f, i) => {
                   const Icon = getFileIcon(f);
@@ -207,7 +276,7 @@ export default function ExamUploadPage() {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={files.length === 0 || !title || uploading}
+              disabled={files.length === 0 || !title || uploading || processing}
               className="w-full"
             >
               {status === 'uploading' && (
