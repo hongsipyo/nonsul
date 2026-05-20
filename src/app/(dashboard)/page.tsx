@@ -64,7 +64,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <Image src="/stickers/chunsik-love.png" alt="춘식이" width={56} height={56} />
           <div>
-            <h1 className="text-2xl font-bold text-zinc-800">대치동 논술1타 홍시표</h1>
+            <h1 className="text-2xl font-bold text-zinc-800">홍시표T 논술 작업실</h1>
             <p className="text-sm text-zinc-400">멋진논술연구소</p>
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function DashboardPage() {
       {/* 춘식이 */}
       <Card className="border-orange-100 bg-gradient-to-r from-orange-50/50 to-yellow-50/50">
         <CardContent className="py-4">
-          <p className="text-xs text-orange-400 text-center mb-3">대치동 논술1타 홍시표</p>
+          <p className="text-xs text-orange-400 text-center mb-3">홍시표T 논술 작업실</p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Image src="/stickers/chunsik-fighting.png" alt="화이팅" width={52} height={52} className="hover:scale-110 transition-transform" title="화이팅!" />
             <Image src="/stickers/chunsik-coffee.png" alt="카페?" width={52} height={52} className="hover:scale-110 transition-transform" title="카페?" />

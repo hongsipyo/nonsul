@@ -49,7 +49,7 @@ export function Sidebar() {
         <Image src="/stickers/chunsik-homework.png" alt="춘식이" width={52} height={52} className="mb-1" />
         <span className="text-base font-extrabold tracking-tight text-orange-600">멋진논술연구소</span>
         <span className="text-[10px] text-orange-400 mt-0.5 text-center leading-tight">
-          대치동 논술1타 홍시표
+          홍시표T 논술 작업실
         </span>
       </div>
 
@@ -90,7 +90,7 @@ export function Sidebar() {
       {/* 하단 */}
       <div className="border-t border-orange-200 p-3 bg-white/30">
         <div className="text-center text-[10px] text-orange-300 mb-2">
-          대치동 논술1타 홍시표
+          홍시표T 논술 작업실
         </div>
         <button
           onClick={async () => {
