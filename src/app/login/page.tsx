@@ -56,7 +56,7 @@ export default function LoginPage() {
           <div className="flex flex-col items-center gap-2">
             <Image src="/stickers/chunsik-love.png" alt="춘식이" width={72} height={72} />
             <CardTitle className="text-xl text-orange-600">멋진논술연구소</CardTitle>
-            <p className="text-xs text-orange-400">논술 스타강사 홍시표를 도와주는 사이트 🧡</p>
+            <p className="text-xs text-orange-400">대치동 논술1타 홍시표</p>
           </div>
           <p className="text-sm text-zinc-500 mt-2">
             {mode === 'login' ? '로그인' : '회원가입'}
@@ -94,7 +94,7 @@ export default function LoginPage() {
 
             <Button type="submit" disabled={loading} className="w-full bg-orange-500 hover:bg-orange-600 text-white">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === 'login' ? '로그인 🐾' : '가입하기 🐾'}
+              {mode === 'login' ? '로그인' : '가입하기'}
             </Button>
 
             <p className="text-center text-sm text-zinc-500">

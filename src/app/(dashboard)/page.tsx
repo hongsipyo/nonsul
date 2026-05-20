@@ -64,8 +64,8 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <Image src="/stickers/chunsik-love.png" alt="춘식이" width={56} height={56} />
           <div>
-            <h1 className="text-2xl font-bold text-zinc-800">안녕하세요, 홍시표T! 🧡</h1>
-            <p className="text-sm text-zinc-400">오늘도 화이팅입니다 🐾</p>
+            <h1 className="text-2xl font-bold text-zinc-800">대치동 논술1타 홍시표</h1>
+            <p className="text-sm text-zinc-400">멋진논술연구소</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -120,7 +120,7 @@ export default function DashboardPage() {
                 아직 첨삭 기록이 없어요!
               </p>
               <p className="text-xs text-zinc-400 mt-1">
-                시험을 업로드하고 첨삭을 시작해보세요 🐾
+                시험을 업로드하고 첨삭을 시작해보세요
               </p>
             </div>
           ) : (
@@ -150,10 +150,10 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* 춘식이 응원단 */}
+      {/* 춘식이 */}
       <Card className="border-orange-100 bg-gradient-to-r from-orange-50/50 to-yellow-50/50">
         <CardContent className="py-4">
-          <p className="text-xs text-orange-400 text-center mb-3">오늘의 춘식이 응원단 🐾</p>
+          <p className="text-xs text-orange-400 text-center mb-3">대치동 논술1타 홍시표</p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Image src="/stickers/chunsik-fighting.png" alt="화이팅" width={52} height={52} className="hover:scale-110 transition-transform" title="화이팅!" />
             <Image src="/stickers/chunsik-coffee.png" alt="카페?" width={52} height={52} className="hover:scale-110 transition-transform" title="카페?" />
