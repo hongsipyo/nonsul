@@ -6,8 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FileText, BookOpen, PenTool, Download, AlertCircle, CheckCircle, Image as ImageIcon, Table2, FileDown } from 'lucide-react';
+import { Loader2, FileText, BookOpen, PenTool, Download, AlertCircle, CheckCircle, Image as ImageIcon, Table2, FileDown, Search } from 'lucide-react';
 import type { Exam, Passage, Question } from '@/types/exam';
+
+interface ProofreadIssue {
+  type: string;
+  original: string;
+  corrected: string;
+  reason: string;
+}
 
 export default function ExamDetailPage() {
   const { examId } = useParams<{ examId: string }>();
@@ -20,6 +27,9 @@ export default function ExamDetailPage() {
   const [rubricResult, setRubricResult] = useState<any>(null);
   const [explanationResult, setExplanationResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [proofreading, setProofreading] = useState(false);
+  const [proofreadResult, setProofreadResult] = useState<{ issues: ProofreadIssue[]; summary: string; total_issues: number } | null>(null);
+  const [proofreadTarget, setProofreadTarget] = useState<string>('');
 
   useEffect(() => {
     fetch(`/api/exams/${examId}`)
@@ -116,6 +126,53 @@ export default function ExamDetailPage() {
     doc.save(`${exam?.title || '해설지'}_해설.pdf`);
   };
 
+  const handleProofread = async (label: string, text: string) => {
+    setProofreading(true);
+    setProofreadTarget(label);
+    setProofreadResult(null);
+    try {
+      const res = await fetch('/api/proofread', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '검수 실패');
+      setProofreadResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '검수 오류');
+    } finally {
+      setProofreading(false);
+    }
+  };
+
+  /** 콘텐츠에서 검수용 텍스트 추출 */
+  const extractTextForProofread = (result: any, type: '해설지' | '채점기준표' | '파싱'): string => {
+    if (type === '파싱' && exam?.parsed_passages) {
+      const parts: string[] = [];
+      for (const p of exam.parsed_passages) parts.push(`${p.label}\n${p.text}`);
+      for (const q of (exam.parsed_questions || [])) parts.push(`문제 ${q.number}: ${q.text}`);
+      return parts.join('\n\n');
+    }
+    if (type === '해설지' && result) {
+      if (result.overview) {
+        const parts: string[] = [];
+        for (const q of result.overview?.questions || []) parts.push(q.analysis);
+        for (const p of result.passage_analyses || []) parts.push(p.core_argument);
+        for (const s of result.solutions || []) parts.push(s.answer_structure, s.approach);
+        for (const a of result.model_answers || []) parts.push(a.content);
+        return parts.join('\n\n');
+      }
+      if (result.sections) {
+        return result.sections.map((s: any) => s.content).join('\n\n');
+      }
+    }
+    if (type === '채점기준표' && result?.items) {
+      return JSON.stringify(result.items, null, 2);
+    }
+    return '';
+  };
+
   const handleDownloadExamPaperPDF = async () => {
     if (!exam?.parsed_passages) return;
     const { generateExamPaperPDF } = await import('@/lib/export/exam-paper-pdf');
@@ -189,6 +246,55 @@ export default function ExamDetailPage() {
         </div>
       )}
 
+      {/* 검수 결과 표시 */}
+      {proofreadResult && (
+        <Card className="border-blue-200 bg-blue-50/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Search className="h-4 w-4 text-blue-600" />
+                검수 결과 — {proofreadTarget}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">
+                  {proofreadResult.total_issues}건 발견
+                </Badge>
+                <button onClick={() => setProofreadResult(null)} className="text-xs text-zinc-400 underline">닫기</button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {proofreadResult.total_issues === 0 ? (
+              <p className="text-sm text-green-700 flex items-center gap-1">
+                <CheckCircle className="h-4 w-4" />
+                오류가 발견되지 않았습니다.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-zinc-600">{proofreadResult.summary}</p>
+                <div className="divide-y">
+                  {proofreadResult.issues.map((issue, i) => (
+                    <div key={i} className="py-2 text-sm">
+                      <div className="flex items-start gap-2">
+                        <Badge variant="outline" className="text-xs shrink-0">{issue.type}</Badge>
+                        <div>
+                          <p>
+                            <span className="line-through text-red-500">{issue.original}</span>
+                            {' → '}
+                            <span className="text-green-700 font-medium">{issue.corrected}</span>
+                          </p>
+                          <p className="text-xs text-zinc-400 mt-0.5">{issue.reason}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {exam.status === 'uploaded' && (
         <Card>
           <CardContent className="py-8 text-center">
@@ -228,6 +334,19 @@ export default function ExamDetailPage() {
 
           {/* ===== 시험 원문 탭 ===== */}
           <TabsContent value="passages" className="space-y-4 mt-4">
+            {passages.length > 0 && (
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => handleProofread('OCR 파싱', extractTextForProofread(null, '파싱'))}
+                  disabled={proofreading}
+                  variant="outline"
+                  size="sm"
+                >
+                  {proofreading && proofreadTarget === 'OCR 파싱' ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Search className="mr-1.5 h-3.5 w-3.5" />}
+                  OCR 텍스트 검수
+                </Button>
+              </div>
+            )}
             {passages.map((p, i) => (
               <Card key={i}>
                 <CardHeader className="pb-2">
@@ -416,14 +535,25 @@ export default function ExamDetailPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm">해설지 결과</h3>
-                  <Button
-                    onClick={handleDownloadExplanationPDF}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <FileDown className="mr-1.5 h-3.5 w-3.5" />
-                    PDF 다운로드
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleProofread('해설지', extractTextForProofread(explanationResult, '해설지'))}
+                      disabled={proofreading}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {proofreading && proofreadTarget === '해설지' ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Search className="mr-1.5 h-3.5 w-3.5" />}
+                      검수
+                    </Button>
+                    <Button
+                      onClick={handleDownloadExplanationPDF}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                      PDF 다운로드
+                    </Button>
+                  </div>
                 </div>
                 {explanationResult.sections.map((sec: any, i: number) => (
                   <Card key={i}>
@@ -449,14 +579,25 @@ export default function ExamDetailPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm">채점기준표 결과</h3>
-                  <Button
-                    onClick={handleDownloadRubricPDF}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <FileDown className="mr-1.5 h-3.5 w-3.5" />
-                    PDF 다운로드
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleProofread('채점기준표', extractTextForProofread(rubricResult, '채점기준표'))}
+                      disabled={proofreading}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {proofreading && proofreadTarget === '채점기준표' ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Search className="mr-1.5 h-3.5 w-3.5" />}
+                      검수
+                    </Button>
+                    <Button
+                      onClick={handleDownloadRubricPDF}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                      PDF 다운로드
+                    </Button>
+                  </div>
                 </div>
                 {rubricResult.items.map((item: any, i: number) => (
                   <Card key={i}>

@@ -452,6 +452,29 @@ export const MESSAGE_SCHEMA: ResponseSchema = {
   required: ['title', 'content', 'preview'],
 };
 
+/** 검수 결과 */
+export const PROOFREAD_SCHEMA: ResponseSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    issues: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          type: { type: SchemaType.STRING },
+          original: { type: SchemaType.STRING },
+          corrected: { type: SchemaType.STRING },
+          reason: { type: SchemaType.STRING },
+        },
+        required: ['type', 'original', 'corrected', 'reason'],
+      },
+    },
+    summary: { type: SchemaType.STRING },
+    total_issues: { type: SchemaType.NUMBER },
+  },
+  required: ['issues', 'summary', 'total_issues'],
+};
+
 /** 첨삭 등 고품질 필요 시 사용할 모델 체인 */
 export const MODELS_PRO = [
   'gemini-2.5-pro',
