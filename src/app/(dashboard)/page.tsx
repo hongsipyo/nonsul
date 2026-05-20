@@ -62,7 +62,7 @@ export default function DashboardPage() {
       {/* 인사 헤더 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Image src="/logos/chunsik.png" alt="" width={40} height={40} />
+          <Image src="/logos/chunsik.jpg" alt="" width={40} height={40} />
           <div>
             <h1 className="text-2xl font-bold text-zinc-800">안녕하세요, 홍시표T! 🧡</h1>
             <p className="text-sm text-zinc-400">오늘도 화이팅입니다 🐾</p>
@@ -115,7 +115,7 @@ export default function DashboardPage() {
             </div>
           ) : recentCorrections.length === 0 ? (
             <div className="text-center py-6">
-              <Image src="/logos/chunsik.png" alt="" width={48} height={48} className="mx-auto mb-3 opacity-50" />
+              <Image src="/logos/chunsik.jpg" alt="" width={48} height={48} className="mx-auto mb-3 opacity-50" />
               <p className="text-sm text-zinc-500">
                 아직 첨삭 기록이 없어요!
               </p>
