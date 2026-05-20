@@ -48,9 +48,6 @@ export function Sidebar() {
       <div className="flex flex-col items-center border-b border-orange-200 px-4 py-4 bg-white/50">
         <Image src="/stickers/chunsik-homework.png" alt="춘식이" width={80} height={80} className="mb-1" />
         <span className="text-base font-extrabold tracking-tight text-orange-600">홍시표T 논술 작업실</span>
-        <span className="text-[10px] text-orange-400 mt-0.5 text-center leading-tight">
-          홍시표T 논술 작업실
-        </span>
       </div>
 
       <nav className="flex-1 space-y-0.5 p-2 overflow-y-auto">
@@ -89,9 +86,6 @@ export function Sidebar() {
 
       {/* 하단 */}
       <div className="border-t border-orange-200 p-3 bg-white/30">
-        <div className="text-center text-[10px] text-orange-300 mb-2">
-          홍시표T 논술 작업실
-        </div>
         <button
           onClick={async () => {
             const supabase = createClient();

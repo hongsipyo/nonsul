@@ -56,7 +56,6 @@ export default function LoginPage() {
           <div className="flex flex-col items-center gap-2">
             <Image src="/stickers/chunsik-love.png" alt="춘식이" width={120} height={120} />
             <CardTitle className="text-xl text-orange-600">홍시표T 논술 작업실</CardTitle>
-            <p className="text-xs text-orange-400">홍시표T 논술 작업실</p>
           </div>
           <p className="text-sm text-zinc-500 mt-2">
             {mode === 'login' ? '로그인' : '회원가입'}
