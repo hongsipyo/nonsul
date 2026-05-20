@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { generateJSON } from "@/lib/ai/client";
+import { generateJSON, STUDENT_COMMENT_SCHEMA } from "@/lib/ai/client";
 import { buildStudentCommentPrompt } from '@/lib/claude/prompts/student-comment';
 
 export async function POST(
@@ -60,7 +60,7 @@ export async function POST(
       })),
     });
 
-    const result = await generateJSON({ prompt });
+    const result = await generateJSON({ prompt, responseSchema: STUDENT_COMMENT_SCHEMA });
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : '코멘트 생성 오류';

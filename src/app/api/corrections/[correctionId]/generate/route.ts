@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generateJSON } from '@/lib/ai/client';
+import { generateJSON, CORRECTION_SCHEMA, MODELS_PRO } from '@/lib/ai/client';
 import {
   buildCorrectionSystemPrompt,
   buildCorrectionUserPrompt,
@@ -87,6 +87,8 @@ export async function POST(
       systemPrompt,
       prompt: userPrompt,
       images,
+      responseSchema: CORRECTION_SCHEMA,
+      models: MODELS_PRO,
     });
 
     await supabase

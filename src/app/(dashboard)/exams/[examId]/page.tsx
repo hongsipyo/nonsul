@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FileText, BookOpen, PenTool, Download, AlertCircle, CheckCircle, Image as ImageIcon, Table2 } from 'lucide-react';
+import { Loader2, FileText, BookOpen, PenTool, Download, AlertCircle, CheckCircle, Image as ImageIcon, Table2, FileDown } from 'lucide-react';
 import type { Exam, Passage, Question } from '@/types/exam';
 
 export default function ExamDetailPage() {
@@ -95,6 +95,31 @@ export default function ExamDetailPage() {
     } finally {
       setGeneratingExplanation(false);
     }
+  };
+
+  const handleDownloadExplanationPDF = async () => {
+    if (!explanationResult?.sections) return;
+    const { generateExplanationPDF } = await import('@/lib/export/explanation-pdf');
+    const doc = await generateExplanationPDF({
+      examTitle: exam?.title || '시험',
+      university: exam?.university || undefined,
+      sections: explanationResult.sections,
+      brand: '프로세스',
+    });
+    doc.save(`${exam?.title || '해설지'}_해설.pdf`);
+  };
+
+  const handleDownloadRubricPDF = async () => {
+    if (!rubricResult?.items) return;
+    const { generateRubricPDF } = await import('@/lib/export/rubric-pdf');
+    const doc = await generateRubricPDF({
+      examTitle: exam?.title || '시험',
+      university: exam?.university || undefined,
+      items: rubricResult.items,
+      globalDeductions: rubricResult.global_deductions,
+      brand: '프로세스',
+    });
+    doc.save(`${exam?.title || '채점기준표'}_채점기준표.pdf`);
   };
 
   if (loading) {
@@ -347,7 +372,17 @@ export default function ExamDetailPage() {
             {/* 해설지 결과 표시 */}
             {explanationResult?.sections && (
               <div className="space-y-3">
-                <h3 className="font-bold text-sm">해설지 결과</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm">해설지 결과</h3>
+                  <Button
+                    onClick={handleDownloadExplanationPDF}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                    PDF 다운로드
+                  </Button>
+                </div>
                 {explanationResult.sections.map((sec: any, i: number) => (
                   <Card key={i}>
                     <CardHeader className="pb-2">
@@ -370,7 +405,17 @@ export default function ExamDetailPage() {
             {/* 채점기준 결과 표시 */}
             {rubricResult?.items && (
               <div className="space-y-3">
-                <h3 className="font-bold text-sm">채점기준표 결과</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm">채점기준표 결과</h3>
+                  <Button
+                    onClick={handleDownloadRubricPDF}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                    PDF 다운로드
+                  </Button>
+                </div>
                 {rubricResult.items.map((item: any, i: number) => (
                   <Card key={i}>
                     <CardHeader className="pb-2">

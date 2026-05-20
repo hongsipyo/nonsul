@@ -5,7 +5,35 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, FileText, Loader2, CheckCircle } from 'lucide-react';
+import { Upload, FileText, Loader2, CheckCircle, ImageIcon } from 'lucide-react';
+
+const ACCEPTED_TYPES = [
+  'application/pdf',
+  'application/haansofthwp',
+  'application/x-hwp',
+  'application/vnd.hancom.hwp',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/heic',
+  'image/heif',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+];
+
+const ACCEPTED_EXTENSIONS = '.pdf,.hwp,.doc,.docx,.heic,.heif,.jpg,.jpeg,.png';
+
+function isAcceptedFile(file: File): boolean {
+  if (ACCEPTED_TYPES.includes(file.type)) return true;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  return ['pdf', 'hwp', 'doc', 'docx', 'heic', 'heif', 'jpg', 'jpeg', 'png'].includes(ext || '');
+}
+
+function getFileIcon(file: File) {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'heic', 'heif'].includes(ext || '')) return ImageIcon;
+  return FileText;
+}
 
 export default function ExamUploadPage() {
   const router = useRouter();
@@ -18,13 +46,15 @@ export default function ExamUploadPage() {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'parsing' | 'done' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const stripExtension = (name: string) => name.replace(/\.(pdf|hwp|doc|docx|heic|heif|jpg|jpeg|png)$/i, '');
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped?.type === 'application/pdf') {
+    if (dropped && isAcceptedFile(dropped)) {
       setFile(dropped);
-      if (!title) setTitle(dropped.name.replace('.pdf', ''));
+      if (!title) setTitle(stripExtension(dropped.name));
     }
   }, [title]);
 
@@ -32,7 +62,7 @@ export default function ExamUploadPage() {
     const selected = e.target.files?.[0];
     if (selected) {
       setFile(selected);
-      if (!title) setTitle(selected.name.replace('.pdf', ''));
+      if (!title) setTitle(stripExtension(selected.name));
     }
   };
 
@@ -81,7 +111,7 @@ export default function ExamUploadPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>기출문제 PDF</CardTitle>
+          <CardTitle>기출문제 업로드</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div
@@ -94,8 +124,9 @@ export default function ExamUploadPage() {
             onClick={() => document.getElementById('pdf-input')?.click()}
           >
             {file ? (
+              (() => { const Icon = getFileIcon(file); return (
               <div className="flex items-center justify-center gap-3">
-                <FileText className="h-8 w-8 text-blue-500" />
+                <Icon className="h-8 w-8 text-blue-500" />
                 <div className="text-left">
                   <p className="font-medium">{file.name}</p>
                   <p className="text-sm text-zinc-500">
@@ -103,16 +134,18 @@ export default function ExamUploadPage() {
                   </p>
                 </div>
               </div>
+              ); })()
             ) : (
               <div className="space-y-2">
                 <Upload className="h-10 w-10 mx-auto text-zinc-400" />
-                <p className="text-zinc-500">PDF 파일을 드래그하거나 클릭하세요</p>
+                <p className="text-zinc-500">파일을 드래그하거나 클릭하세요</p>
+                <p className="text-xs text-zinc-400">PDF, HWP, Word, JPG, JPEG, PNG, HEIC</p>
               </div>
             )}
             <input
               id="pdf-input"
               type="file"
-              accept=".pdf"
+              accept={ACCEPTED_EXTENSIONS}
               className="hidden"
               onChange={handleFileChange}
             />

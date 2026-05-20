@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateExamPptx } from '@/lib/export/pptx-generator';
-import { generateJSON } from '@/lib/ai/client';
+import { generateJSON, SECTIONS_SCHEMA } from '@/lib/ai/client';
 import { buildExplanationPrompt } from '@/lib/claude/prompts/explanation-generation';
 import type { Passage, Question, BrandType } from '@/types/exam';
 
@@ -93,6 +93,7 @@ export async function POST(
 
       const explanationData = await generateJSON({
         prompt: buildExplanationPrompt(examText, rubricJson),
+        responseSchema: SECTIONS_SCHEMA,
       });
 
       await supabase.from('generated_materials').insert({

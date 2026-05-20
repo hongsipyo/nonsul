@@ -145,13 +145,14 @@ export default function OralExamPage() {
               ) : (
                 <div>
                   <Upload className="h-6 w-6 mx-auto text-zinc-400 mb-1" />
-                  <p className="text-sm text-zinc-500">PDF 클릭/드래그</p>
+                  <p className="text-sm text-zinc-500">파일 클릭/드래그</p>
+                  <p className="text-xs text-zinc-400">PDF, JPG, PNG, HEIC</p>
                 </div>
               )}
               <input
                 id="oral-pdf-input"
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif"
                 className="hidden"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />

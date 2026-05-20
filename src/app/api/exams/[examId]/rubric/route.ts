@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generateJSON } from '@/lib/ai/client';
+import { generateJSON, RUBRIC_SCHEMA } from '@/lib/ai/client';
 import { buildRubricGenerationPrompt } from '@/lib/claude/prompts/rubric-generation';
 import type { Passage, Question } from '@/types/exam';
 
@@ -38,7 +38,7 @@ export async function POST(
     const examText = examToText(exam.parsed_passages, exam.parsed_questions || []);
     const prompt = buildRubricGenerationPrompt(examText, exam.scoring_note || undefined);
 
-    const rubricData = await generateJSON({ prompt });
+    const rubricData = await generateJSON({ prompt, responseSchema: RUBRIC_SCHEMA });
 
     // Upsert rubric
     const { data: existing } = await supabase

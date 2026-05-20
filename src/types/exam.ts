@@ -1,3 +1,24 @@
+export type MessageType = '수업안내' | '시험결과' | '상담' | '첨삭완료' | '일반';
+export type MessageStatus = 'draft' | 'sent';
+
+export interface Message {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  type: MessageType;
+  status: MessageStatus;
+  recipient_type: 'individual' | 'class' | 'all';
+  recipient_student_ids?: string[];
+  recipient_class_name?: string;
+  recipient_names?: string[];
+  exam_id?: string;
+  student_id?: string;
+  sent_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ExamStatus = 'uploaded' | 'parsing' | 'parsed' | 'analyzed' | 'error';
 export type CorrectionStatus = 'uploaded' | 'processing' | 'completed' | 'error';
 export type MaterialType = '해설지' | '채점기준표' | 'ppt';

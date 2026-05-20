@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateJSON } from '@/lib/ai/client';
+import { generateJSON, ORAL_EXAM_SCHEMA } from '@/lib/ai/client';
 import { buildOralExamPrompt } from '@/lib/claude/prompts/oral-exam';
 
 export async function POST(req: NextRequest) {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const prompt = buildOralExamPrompt({ examText, university, year, session });
-    const result = await generateJSON({ prompt });
+    const result = await generateJSON({ prompt, responseSchema: ORAL_EXAM_SCHEMA });
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : '구술 예시답안 생성 오류';

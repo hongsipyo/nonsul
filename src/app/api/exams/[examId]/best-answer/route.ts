@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { generateJSON } from "@/lib/ai/client";
+import { generateJSON, BEST_ANSWER_SCHEMA } from "@/lib/ai/client";
 import { buildBestAnswerSelectionPrompt } from '@/lib/claude/prompts/best-answer';
 import type { Passage, Question } from '@/types/exam';
 
@@ -70,7 +70,7 @@ export async function POST(
       answersWithScores,
     });
 
-    const result = await generateJSON({ prompt });
+    const result = await generateJSON({ prompt, responseSchema: BEST_ANSWER_SCHEMA });
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : '우수답안 선정 오류';
