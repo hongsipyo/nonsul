@@ -217,20 +217,28 @@ export async function POST(
 
       for (let i = 0; i < allImages.length; i++) {
         const f = allImages[i];
-        let imageBuffer: Buffer =
-          (f.ext === 'heic' || f.ext === 'heif')
-            ? await convertHeicToJpeg(f.buffer)
-            : f.buffer;
-        imageBuffer = await optimizeForOCR(imageBuffer);
-        images.push({ base64: imageBuffer.toString('base64'), mimeType: 'image/jpeg' });
+        const isHeic = f.ext === 'heic' || f.ext === 'heif';
 
-        // 페이지 이미지로 저장
-        const imgFileName = `exam-pages/${examId}/page_${i + 1}.png`;
-        await supabase.storage
-          .from('exam-pdfs')
-          .upload(imgFileName, imageBuffer, { contentType: 'image/jpeg', upsert: true });
-        const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
-        pageImageUrls[i + 1] = urlData?.publicUrl || '';
+        if (isHeic) {
+          // HEIC: sharp 변환 불가 (Vercel), Gemini에 raw로 전달
+          images.push({ base64: f.buffer.toString('base64'), mimeType: 'image/heic' });
+          // 페이지 이미지는 원본 저장
+          const imgFileName = `exam-pages/${examId}/page_${i + 1}.heic`;
+          await supabase.storage
+            .from('exam-pdfs')
+            .upload(imgFileName, f.buffer, { contentType: 'image/heic', upsert: true });
+          const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
+          pageImageUrls[i + 1] = urlData?.publicUrl || '';
+        } else {
+          const imageBuffer = await optimizeForOCR(f.buffer);
+          images.push({ base64: imageBuffer.toString('base64'), mimeType: 'image/jpeg' });
+          const imgFileName = `exam-pages/${examId}/page_${i + 1}.png`;
+          await supabase.storage
+            .from('exam-pdfs')
+            .upload(imgFileName, imageBuffer, { contentType: 'image/jpeg', upsert: true });
+          const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
+          pageImageUrls[i + 1] = urlData?.publicUrl || '';
+        }
       }
 
       const pageCount = images.length;
@@ -304,19 +312,25 @@ export async function POST(
 
       for (const f of downloadedFiles) {
         if (f.category === 'image') {
-          let imageBuffer: Buffer =
-            (f.ext === 'heic' || f.ext === 'heif')
-              ? await convertHeicToJpeg(f.buffer)
-              : f.buffer;
-          imageBuffer = await optimizeForOCR(imageBuffer);
-          images.push({ base64: imageBuffer.toString('base64'), mimeType: 'image/jpeg' });
-
-          const imgFileName = `exam-pages/${examId}/page_${pageIdx}.png`;
-          await supabase.storage
-            .from('exam-pdfs')
-            .upload(imgFileName, imageBuffer, { contentType: 'image/jpeg', upsert: true });
-          const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
-          pageImageUrls[pageIdx] = urlData?.publicUrl || '';
+          const isHeic = f.ext === 'heic' || f.ext === 'heif';
+          if (isHeic) {
+            images.push({ base64: f.buffer.toString('base64'), mimeType: 'image/heic' });
+            const imgFileName = `exam-pages/${examId}/page_${pageIdx}.heic`;
+            await supabase.storage
+              .from('exam-pdfs')
+              .upload(imgFileName, f.buffer, { contentType: 'image/heic', upsert: true });
+            const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
+            pageImageUrls[pageIdx] = urlData?.publicUrl || '';
+          } else {
+            const imageBuffer = await optimizeForOCR(f.buffer);
+            images.push({ base64: imageBuffer.toString('base64'), mimeType: 'image/jpeg' });
+            const imgFileName = `exam-pages/${examId}/page_${pageIdx}.png`;
+            await supabase.storage
+              .from('exam-pdfs')
+              .upload(imgFileName, imageBuffer, { contentType: 'image/jpeg', upsert: true });
+            const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
+            pageImageUrls[pageIdx] = urlData?.publicUrl || '';
+          }
           pageIdx++;
         } else if (f.category === 'pdf') {
           try {
