@@ -1,10 +1,10 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import type { ResponseSchema } from '@google/generative-ai';
 
+/** 기본 모델 체인 (잡일용) */
 const MODELS = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
-  'gemini-1.5-flash',
 ] as const;
 
 let client: GoogleGenerativeAI | null = null;

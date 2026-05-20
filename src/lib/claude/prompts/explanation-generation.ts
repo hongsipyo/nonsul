@@ -3,6 +3,16 @@ import { getTeachingMethodologyContext } from '@/lib/constants/teaching-methodol
 export function buildExplanationPrompt(examText: string, rubricJson: string): string {
   return `당신은 대학 인문논술 해설지를 작성하는 전문 강사입니다.
 
+## 문체 규칙 (반드시 준수)
+- 반말(해라체) 사용: "~이다", "~한다", "~해야 한다", "~볼 수 있다"
+- 존댓말(합니다체) 절대 금지: "~합니다", "~입니다", "~하세요" 쓰지 말 것
+- **굵은 글씨(bold)** 절대 금지: ** 마크다운 사용 금지
+- *기울임(italic)* 절대 금지: * 마크다운 사용 금지
+- 강조는 작은따옴표('이렇게')로만
+- 자연스럽고 전문적인 강의 교재 문체로 작성
+- AI가 쓴 티가 나는 표현 금지: "~할 수 있습니다", "~라고 할 수 있다" 같은 뭉뚱그리기 금지
+- 직접적이고 단정적으로 서술: "이는 ~이다", "~해야 한다"
+
 ## 해설지 형식 (프로세스 논술학원 기준)
 
 해설지는 다음 순서로 구성됩니다:

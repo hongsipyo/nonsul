@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generateJSON, EXAM_PARSE_SCHEMA } from '@/lib/ai/client';
+import { generateJSON, EXAM_PARSE_SCHEMA, MODELS_PRO } from '@/lib/ai/client';
 import { EXAM_PARSE_SYSTEM_PROMPT } from '@/lib/claude/prompts/exam-parse';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -247,6 +247,7 @@ export async function POST(
         prompt: `이 시험지는 총 ${pageCount}장의 이미지입니다. ` + OCR_ENHANCED_PROMPT,
         images,
         responseSchema: EXAM_PARSE_SCHEMA,
+        models: MODELS_PRO,
       });
 
     } else if (allPdfs.length === 1 && allImages.length === 0 && allDocs.length === 0) {
@@ -259,6 +260,7 @@ export async function POST(
         prompt: OCR_ENHANCED_PROMPT,
         pdfBase64: base64,
         responseSchema: EXAM_PARSE_SCHEMA,
+        models: MODELS_PRO,
       });
 
       try {
@@ -287,6 +289,7 @@ export async function POST(
         prompt: OCR_ENHANCED_PROMPT,
         pdfBase64: base64,
         responseSchema: EXAM_PARSE_SCHEMA,
+        models: MODELS_PRO,
       });
 
       try {
@@ -358,6 +361,7 @@ export async function POST(
         prompt: `이 시험지는 총 ${images.length}장의 이미지입니다. ` + OCR_ENHANCED_PROMPT,
         images,
         responseSchema: EXAM_PARSE_SCHEMA,
+        models: MODELS_PRO,
       });
     }
 
