@@ -65,7 +65,7 @@ export default function DashboardPage() {
           <Image src="/stickers/chunsik-love.png" alt="춘식이" width={80} height={80} />
           <div>
             <h1 className="text-2xl font-bold text-zinc-800">홍시표T 논술 작업실</h1>
-            <p className="text-sm text-zinc-400">멋진논술연구소</p>
+            <p className="text-sm text-zinc-400">홍시표T 논술 작업실</p>
           </div>
         </div>
         <div className="flex gap-2">

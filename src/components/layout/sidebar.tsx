@@ -47,7 +47,7 @@ export function Sidebar() {
       {/* 로고 영역 */}
       <div className="flex flex-col items-center border-b border-orange-200 px-4 py-4 bg-white/50">
         <Image src="/stickers/chunsik-homework.png" alt="춘식이" width={80} height={80} className="mb-1" />
-        <span className="text-base font-extrabold tracking-tight text-orange-600">멋진논술연구소</span>
+        <span className="text-base font-extrabold tracking-tight text-orange-600">홍시표T 논술 작업실</span>
         <span className="text-[10px] text-orange-400 mt-0.5 text-center leading-tight">
           홍시표T 논술 작업실
         </span>

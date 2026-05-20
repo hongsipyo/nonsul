@@ -8,7 +8,7 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "멋진논술연구소",
+  title: "홍시표T 논술 작업실",
   description: "AI 기반 대입 인문논술 첨삭 및 수업자료 생성",
 };
 
