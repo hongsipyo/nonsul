@@ -116,6 +116,19 @@ export default function ExamDetailPage() {
     doc.save(`${exam?.title || '해설지'}_해설.pdf`);
   };
 
+  const handleDownloadExamPaperPDF = async () => {
+    if (!exam?.parsed_passages) return;
+    const { generateExamPaperPDF } = await import('@/lib/export/exam-paper-pdf');
+    const doc = await generateExamPaperPDF({
+      examTitle: exam.title,
+      university: exam.university || undefined,
+      passages: exam.parsed_passages || [],
+      questions: exam.parsed_questions || [],
+      brand: '프로세스',
+    });
+    doc.save(`${exam.title}_시험지.pdf`);
+  };
+
   const handleDownloadRubricPDF = async () => {
     if (!rubricResult?.items) return;
     const { generateRubricPDF } = await import('@/lib/export/rubric-pdf');
@@ -285,7 +298,29 @@ export default function ExamDetailPage() {
 
           {/* ===== 수업자료 탭 ===== */}
           <TabsContent value="materials" className="space-y-4 mt-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    시험지 PDF
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-zinc-500 mb-3">
+                    프로세스 브랜드 시험지 형식
+                  </p>
+                  <Button
+                    onClick={handleDownloadExamPaperPDF}
+                    disabled={!exam?.parsed_passages}
+                    className="w-full"
+                    size="sm"
+                  >
+                    시험지 다운로드
+                  </Button>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
