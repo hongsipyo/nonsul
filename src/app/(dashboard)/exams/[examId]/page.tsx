@@ -98,13 +98,20 @@ export default function ExamDetailPage() {
   };
 
   const handleDownloadExplanationPDF = async () => {
-    if (!explanationResult?.sections) return;
+    if (!explanationResult) return;
     const { generateExplanationPDF } = await import('@/lib/export/explanation-pdf');
     const doc = await generateExplanationPDF({
       examTitle: exam?.title || '시험',
       university: exam?.university || undefined,
-      sections: explanationResult.sections,
       brand: '프로세스',
+      // 새 형식
+      overview: explanationResult.overview,
+      passage_analyses: explanationResult.passage_analyses,
+      solutions: explanationResult.solutions,
+      scoring_criteria: explanationResult.scoring_criteria,
+      model_answers: explanationResult.model_answers,
+      // 기존 형식 fallback
+      sections: explanationResult.sections,
     });
     doc.save(`${exam?.title || '해설지'}_해설.pdf`);
   };
@@ -370,7 +377,7 @@ export default function ExamDetailPage() {
             </div>
 
             {/* 해설지 결과 표시 */}
-            {explanationResult?.sections && (
+            {explanationResult && (explanationResult.overview || explanationResult.sections) && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm">해설지 결과</h3>

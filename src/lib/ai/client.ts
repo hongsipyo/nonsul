@@ -95,27 +95,110 @@ function repairJSON(text: string): string {
 
 // ─── Response Schemas ───
 
-/** 해설지 */
-export const SECTIONS_SCHEMA: ResponseSchema = {
+/** 해설지 (실물 교재 형식) */
+export const EXPLANATION_SCHEMA: ResponseSchema = {
   type: SchemaType.OBJECT,
   properties: {
-    sections: {
+    overview: {
+      type: SchemaType.OBJECT,
+      properties: {
+        questions: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              number: { type: SchemaType.NUMBER },
+              type: { type: SchemaType.STRING },
+              passages_used: { type: SchemaType.STRING },
+              key_concepts: { type: SchemaType.STRING },
+              word_limit: { type: SchemaType.NUMBER, nullable: true },
+              analysis: { type: SchemaType.STRING },
+            },
+            required: ['number', 'type', 'passages_used', 'key_concepts', 'analysis'],
+          },
+        },
+      },
+      required: ['questions'],
+    },
+    passage_analyses: {
       type: SchemaType.ARRAY,
       items: {
         type: SchemaType.OBJECT,
         properties: {
-          type: { type: SchemaType.STRING },
-          question_number: { type: SchemaType.NUMBER, nullable: true },
-          passage_label: { type: SchemaType.STRING, nullable: true },
-          content: { type: SchemaType.STRING },
-          word_count: { type: SchemaType.NUMBER, nullable: true },
+          label: { type: SchemaType.STRING },
+          core_argument: { type: SchemaType.STRING },
+          key_concepts: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          relationship: { type: SchemaType.STRING },
+          thinking_type: { type: SchemaType.STRING },
         },
-        required: ['type', 'content'],
+        required: ['label', 'core_argument', 'key_concepts', 'relationship', 'thinking_type'],
+      },
+    },
+    solutions: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          question_number: { type: SchemaType.NUMBER },
+          answer_structure: { type: SchemaType.STRING },
+          approach: { type: SchemaType.STRING },
+          criticism_tools: { type: SchemaType.STRING, nullable: true },
+        },
+        required: ['question_number', 'answer_structure', 'approach'],
+      },
+    },
+    scoring_criteria: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          question_number: { type: SchemaType.NUMBER },
+          total_points: { type: SchemaType.NUMBER },
+          items: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING },
+                points: { type: SchemaType.NUMBER },
+                checklist: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+              },
+              required: ['name', 'points', 'checklist'],
+            },
+          },
+          deductions: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING },
+                points: { type: SchemaType.NUMBER },
+              },
+              required: ['name', 'points'],
+            },
+          },
+        },
+        required: ['question_number', 'total_points', 'items'],
+      },
+    },
+    model_answers: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          question_number: { type: SchemaType.NUMBER },
+          content: { type: SchemaType.STRING },
+          word_count: { type: SchemaType.NUMBER },
+        },
+        required: ['question_number', 'content', 'word_count'],
       },
     },
   },
-  required: ['sections'],
+  required: ['overview', 'passage_analyses', 'solutions', 'scoring_criteria', 'model_answers'],
 };
+
+/** 기존 호환용 alias */
+export const SECTIONS_SCHEMA = EXPLANATION_SCHEMA;
 
 /** 채점기준표 */
 export const RUBRIC_SCHEMA: ResponseSchema = {
