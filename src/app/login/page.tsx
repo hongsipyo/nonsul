@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,11 +50,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">멋진논술연구소</CardTitle>
-          <p className="text-sm text-zinc-500">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 px-4">
+      <Card className="w-full max-w-sm border-orange-200 shadow-lg">
+        <CardHeader className="text-center pb-2">
+          <div className="flex flex-col items-center gap-2">
+            <Image src="/logos/chunsik.png" alt="춘식이" width={64} height={64} />
+            <CardTitle className="text-xl text-orange-600">멋진논술연구소</CardTitle>
+            <p className="text-xs text-orange-400">논술 스타강사 홍시표를 도와주는 사이트 🧡</p>
+          </div>
+          <p className="text-sm text-zinc-500 mt-2">
             {mode === 'login' ? '로그인' : '회원가입'}
           </p>
         </CardHeader>
@@ -67,7 +72,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="email@example.com"
                 required
-                className="mt-1"
+                className="mt-1 border-orange-200 focus:ring-orange-300"
               />
             </div>
             <div>
@@ -79,7 +84,7 @@ export default function LoginPage() {
                 placeholder="6자 이상"
                 required
                 minLength={6}
-                className="mt-1"
+                className="mt-1 border-orange-200 focus:ring-orange-300"
               />
             </div>
 
@@ -87,9 +92,9 @@ export default function LoginPage() {
               <p className="text-sm text-red-500">{error}</p>
             )}
 
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading} className="w-full bg-orange-500 hover:bg-orange-600 text-white">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === 'login' ? '로그인' : '가입하기'}
+              {mode === 'login' ? '로그인 🐾' : '가입하기 🐾'}
             </Button>
 
             <p className="text-center text-sm text-zinc-500">
@@ -99,7 +104,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setMode('signup')}
-                    className="text-blue-500 hover:underline"
+                    className="text-orange-500 hover:underline font-medium"
                   >
                     회원가입
                   </button>
@@ -110,7 +115,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setMode('login')}
-                    className="text-blue-500 hover:underline"
+                    className="text-orange-500 hover:underline font-medium"
                   >
                     로그인
                   </button>
