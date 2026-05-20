@@ -36,35 +36,60 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 });
   }
 
-  const file = formData.get('file') as File;
   const title = formData.get('title') as string;
   const university = formData.get('university') as string;
   const scoringNote = formData.get('scoringNote') as string;
 
-  if (!file || !title) {
+  // 다중 파일 ('files') 또는 단일 파일 ('file') 둘 다 지원
+  const multiFiles = formData.getAll('files') as File[];
+  const singleFile = formData.get('file') as File | null;
+  const files: File[] = multiFiles.length > 0
+    ? multiFiles.filter((f) => f instanceof File && f.size > 0)
+    : singleFile ? [singleFile] : [];
+
+  if (files.length === 0 || !title) {
     return NextResponse.json({ error: '파일과 제목이 필요합니다' }, { status: 400 });
   }
 
-  const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  if (!ALLOWED_EXTENSIONS.has(ext)) {
-    return NextResponse.json(
-      { error: `지원하지 않는 파일 형식입니다: .${ext}` },
-      { status: 400 }
-    );
+  // 파일 확장자 검증
+  for (const file of files) {
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      return NextResponse.json(
+        { error: `지원하지 않는 파일 형식입니다: ${file.name}` },
+        { status: 400 }
+      );
+    }
   }
 
-  const contentType = MIME_MAP[ext] || 'application/octet-stream';
-  const fileName = `${Date.now()}_exam.${ext}`;
+  const timestamp = Date.now();
+  const uploadedPaths: string[] = [];
+  const uploadedUrls: string[] = [];
 
-  const { error: uploadError } = await supabase.storage
-    .from('exam-pdfs')
-    .upload(fileName, file, { contentType });
+  // 모든 파일 업로드
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const contentType = MIME_MAP[ext] || 'application/octet-stream';
+    const fileName = files.length === 1
+      ? `${timestamp}_exam.${ext}`
+      : `${timestamp}_exam_${i + 1}.${ext}`;
 
-  if (uploadError) {
-    return NextResponse.json({ error: `업로드 실패: ${uploadError.message}` }, { status: 500 });
+    const { error: uploadError } = await supabase.storage
+      .from('exam-pdfs')
+      .upload(fileName, file, { contentType });
+
+    if (uploadError) {
+      return NextResponse.json(
+        { error: `업로드 실패 (${file.name}): ${uploadError.message}` },
+        { status: 500 }
+      );
+    }
+
+    const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(fileName);
+    uploadedPaths.push(fileName);
+    uploadedUrls.push(urlData?.publicUrl || '');
   }
-
-  const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(fileName);
 
   const { data: exam, error: insertError } = await supabase
     .from('exams')
@@ -72,8 +97,17 @@ export async function POST(req: NextRequest) {
       title,
       university: university || null,
       scoring_note: scoringNote || null,
-      original_pdf_path: fileName,
-      original_pdf_url: urlData?.publicUrl || '',
+      // 단일 파일: 기존 호환 유지, 다중 파일: 첫 번째를 대표로
+      original_pdf_path: uploadedPaths[0],
+      original_pdf_url: uploadedUrls[0],
+      // 다중 파일 정보는 metadata에 저장
+      parsed_metadata: files.length > 1 ? {
+        multi_files: uploadedPaths.map((path, i) => ({
+          path,
+          url: uploadedUrls[i],
+          original_name: files[i].name,
+        })),
+      } : null,
       status: 'uploaded',
     })
     .select()

@@ -171,22 +171,74 @@ export async function POST(
   await supabase.from('exams').update({ status: 'parsing' }).eq('id', examId);
 
   try {
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from('exam-pdfs')
-      .download(exam.original_pdf_path);
+    // 다중 파일 여부 확인
+    const multiFiles: { path: string; url: string; original_name: string }[] =
+      exam.parsed_metadata?.multi_files || [];
 
-    if (downloadError || !fileData) throw new Error('파일 다운로드 실패');
+    // 파일 경로 목록: 다중이면 multi_files, 단일이면 original_pdf_path
+    const filePaths = multiFiles.length > 0
+      ? multiFiles.map((f: any) => f.path)
+      : [exam.original_pdf_path as string];
 
-    const rawBuffer = Buffer.from(await fileData.arrayBuffer());
-    const filePath = exam.original_pdf_path as string;
-    const ext = filePath.split('.').pop()?.toLowerCase() || 'pdf';
-    const category = getFileCategory(filePath);
+    // 모든 파일 다운로드
+    const downloadedFiles: { buffer: Buffer; path: string; ext: string; category: FileCategory }[] = [];
+    for (const fp of filePaths) {
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('exam-pdfs')
+        .download(fp);
+      if (downloadError || !fileData) throw new Error(`파일 다운로드 실패: ${fp}`);
+      const ext = fp.split('.').pop()?.toLowerCase() || 'pdf';
+      downloadedFiles.push({
+        buffer: Buffer.from(await fileData.arrayBuffer()),
+        path: fp,
+        ext,
+        category: getFileCategory(fp),
+      });
+    }
 
     let parsed: any;
     let pageImageUrls: Record<number, string> = {};
+    const firstExt = downloadedFiles[0].ext;
+    const firstCategory = downloadedFiles[0].category;
 
-    if (category === 'pdf') {
-      // ── PDF: 기존 방식 + OCR 강화 프롬프트 ──
+    // ── 다중 이미지 파일: 모두 OCR 최적화해서 한번에 Gemini에 전달 ──
+    const allImages = downloadedFiles.filter((f) => f.category === 'image');
+    const allPdfs = downloadedFiles.filter((f) => f.category === 'pdf');
+    const allDocs = downloadedFiles.filter((f) => f.category === 'document');
+
+    if (allImages.length > 0 && allPdfs.length === 0 && allDocs.length === 0) {
+      // 전부 이미지: 여러 장을 한번에 OCR
+      const images: { base64: string; mimeType: string }[] = [];
+
+      for (let i = 0; i < allImages.length; i++) {
+        const f = allImages[i];
+        let imageBuffer: Buffer =
+          (f.ext === 'heic' || f.ext === 'heif')
+            ? await convertHeicToJpeg(f.buffer)
+            : f.buffer;
+        imageBuffer = await optimizeForOCR(imageBuffer);
+        images.push({ base64: imageBuffer.toString('base64'), mimeType: 'image/jpeg' });
+
+        // 페이지 이미지로 저장
+        const imgFileName = `exam-pages/${examId}/page_${i + 1}.png`;
+        await supabase.storage
+          .from('exam-pdfs')
+          .upload(imgFileName, imageBuffer, { contentType: 'image/jpeg', upsert: true });
+        const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
+        pageImageUrls[i + 1] = urlData?.publicUrl || '';
+      }
+
+      const pageCount = images.length;
+      parsed = await generateJSON({
+        systemPrompt: EXAM_PARSE_SYSTEM_PROMPT,
+        prompt: `이 시험지는 총 ${pageCount}장의 이미지입니다. ` + OCR_ENHANCED_PROMPT,
+        images,
+        responseSchema: EXAM_PARSE_SCHEMA,
+      });
+
+    } else if (allPdfs.length === 1 && allImages.length === 0 && allDocs.length === 0) {
+      // 단일 PDF
+      const rawBuffer = allPdfs[0].buffer;
       const base64 = rawBuffer.toString('base64');
 
       parsed = await generateJSON({
@@ -196,7 +248,6 @@ export async function POST(
         responseSchema: EXAM_PARSE_SCHEMA,
       });
 
-      // 페이지 이미지 생성 (300 DPI)
       try {
         const pageImages = await pdfToPageImages(rawBuffer);
         for (const img of pageImages) {
@@ -213,36 +264,9 @@ export async function POST(
         console.error('PDF 페이지 이미지 변환 실패:', imgErr);
       }
 
-    } else if (category === 'image') {
-      // ── 이미지(JPG/JPEG/PNG/HEIC): OCR 최적화 후 Gemini에 이미지로 전달 ──
-      let imageBuffer: Buffer =
-        (ext === 'heic' || ext === 'heif')
-          ? await convertHeicToJpeg(rawBuffer)
-          : rawBuffer;
-
-      // OCR 최적화 (선명화 + 정규화)
-      imageBuffer = await optimizeForOCR(imageBuffer);
-      const mimeType = 'image/jpeg';
-      const base64 = imageBuffer.toString('base64');
-
-      parsed = await generateJSON({
-        systemPrompt: EXAM_PARSE_SYSTEM_PROMPT,
-        prompt: OCR_ENHANCED_PROMPT,
-        images: [{ base64, mimeType }],
-        responseSchema: EXAM_PARSE_SCHEMA,
-      });
-
-      // 원본 이미지를 페이지 이미지로 저장
-      const imgFileName = `exam-pages/${examId}/page_1.png`;
-      await supabase.storage
-        .from('exam-pdfs')
-        .upload(imgFileName, imageBuffer, { contentType: 'image/jpeg', upsert: true });
-      const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
-      pageImageUrls[1] = urlData?.publicUrl || '';
-
-    } else {
-      // ── 문서(HWP/DOC/DOCX): PDF로 변환 후 처리 ──
-      const pdfBuffer = await convertDocToPdf(rawBuffer, ext);
+    } else if (allDocs.length > 0 && allImages.length === 0 && allPdfs.length === 0) {
+      // 문서(HWP/DOC/DOCX): 첫 번째 문서만 변환
+      const pdfBuffer = await convertDocToPdf(allDocs[0].buffer, allDocs[0].ext);
       const base64 = pdfBuffer.toString('base64');
 
       parsed = await generateJSON({
@@ -252,7 +276,6 @@ export async function POST(
         responseSchema: EXAM_PARSE_SCHEMA,
       });
 
-      // PDF 변환본에서 페이지 이미지 생성
       try {
         const pageImages = await pdfToPageImages(pdfBuffer);
         for (const img of pageImages) {
@@ -268,6 +291,55 @@ export async function POST(
       } catch (imgErr) {
         console.error('문서 페이지 이미지 변환 실패:', imgErr);
       }
+
+    } else {
+      // 혼합 파일: 이미지와 PDF를 모두 이미지로 변환해서 합침
+      const images: { base64: string; mimeType: string }[] = [];
+      let pageIdx = 1;
+
+      for (const f of downloadedFiles) {
+        if (f.category === 'image') {
+          let imageBuffer: Buffer =
+            (f.ext === 'heic' || f.ext === 'heif')
+              ? await convertHeicToJpeg(f.buffer)
+              : f.buffer;
+          imageBuffer = await optimizeForOCR(imageBuffer);
+          images.push({ base64: imageBuffer.toString('base64'), mimeType: 'image/jpeg' });
+
+          const imgFileName = `exam-pages/${examId}/page_${pageIdx}.png`;
+          await supabase.storage
+            .from('exam-pdfs')
+            .upload(imgFileName, imageBuffer, { contentType: 'image/jpeg', upsert: true });
+          const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
+          pageImageUrls[pageIdx] = urlData?.publicUrl || '';
+          pageIdx++;
+        } else if (f.category === 'pdf') {
+          try {
+            const pageImgs = await pdfToPageImages(f.buffer);
+            for (const img of pageImgs) {
+              const optimized = await optimizeForOCR(img.buffer);
+              images.push({ base64: optimized.toString('base64'), mimeType: 'image/jpeg' });
+
+              const imgFileName = `exam-pages/${examId}/page_${pageIdx}.png`;
+              await supabase.storage
+                .from('exam-pdfs')
+                .upload(imgFileName, optimized, { contentType: 'image/jpeg', upsert: true });
+              const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(imgFileName);
+              pageImageUrls[pageIdx] = urlData?.publicUrl || '';
+              pageIdx++;
+            }
+          } catch {
+            // PDF→이미지 변환 실패 시 PDF 직접 전달은 혼합에서 불가, skip
+          }
+        }
+      }
+
+      parsed = await generateJSON({
+        systemPrompt: EXAM_PARSE_SYSTEM_PROMPT,
+        prompt: `이 시험지는 총 ${images.length}장의 이미지입니다. ` + OCR_ENHANCED_PROMPT,
+        images,
+        responseSchema: EXAM_PARSE_SCHEMA,
+      });
     }
 
     // 제시문에 페이지 이미지 URL 매핑
@@ -282,9 +354,11 @@ export async function POST(
         parsed_passages: passages,
         parsed_questions: parsed.questions,
         parsed_metadata: {
+          ...(exam.parsed_metadata || {}),
           ...(parsed.metadata || {}),
           page_image_urls: pageImageUrls,
-          original_format: ext,
+          original_format: firstExt,
+          file_count: downloadedFiles.length,
         },
         status: 'parsed',
         updated_at: new Date().toISOString(),
@@ -298,7 +372,7 @@ export async function POST(
       passages: passages.length,
       questions: (parsed.questions || []).length,
       pageImages: Object.keys(pageImageUrls).length,
-      format: ext,
+      fileCount: downloadedFiles.length,
     });
   } catch (err) {
     await supabase.from('exams').update({ status: 'error' }).eq('id', examId);

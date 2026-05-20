@@ -5,26 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, FileText, Loader2, CheckCircle, ImageIcon } from 'lucide-react';
-
-const ACCEPTED_TYPES = [
-  'application/pdf',
-  'application/haansofthwp',
-  'application/x-hwp',
-  'application/vnd.hancom.hwp',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'image/heic',
-  'image/heif',
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-];
+import { Upload, FileText, Loader2, CheckCircle, ImageIcon, X } from 'lucide-react';
 
 const ACCEPTED_EXTENSIONS = '.pdf,.hwp,.doc,.docx,.heic,.heif,.jpg,.jpeg,.png';
 
 function isAcceptedFile(file: File): boolean {
-  if (ACCEPTED_TYPES.includes(file.type)) return true;
   const ext = file.name.split('.').pop()?.toLowerCase();
   return ['pdf', 'hwp', 'doc', 'docx', 'heic', 'heif', 'jpg', 'jpeg', 'png'].includes(ext || '');
 }
@@ -35,9 +20,17 @@ function getFileIcon(file: File) {
   return FileText;
 }
 
+function stripExtension(name: string) {
+  return name.replace(/\.(pdf|hwp|doc|docx|heic|heif|jpg|jpeg|png)$/i, '');
+}
+
+function formatSize(bytes: number) {
+  return (bytes / 1024 / 1024).toFixed(1) + 'MB';
+}
+
 export default function ExamUploadPage() {
   const router = useRouter();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
   const [university, setUniversity] = useState('');
   const [scoringNote, setScoringNote] = useState('');
@@ -46,36 +39,42 @@ export default function ExamUploadPage() {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'parsing' | 'done' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const stripExtension = (name: string) => name.replace(/\.(pdf|hwp|doc|docx|heic|heif|jpg|jpeg|png)$/i, '');
+  const addFiles = useCallback((newFiles: FileList | File[]) => {
+    const accepted = Array.from(newFiles).filter(isAcceptedFile);
+    if (accepted.length === 0) return;
+    setFiles((prev) => [...prev, ...accepted]);
+    if (!title && accepted.length > 0) {
+      setTitle(stripExtension(accepted[0].name));
+    }
+  }, [title]);
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped && isAcceptedFile(dropped)) {
-      setFile(dropped);
-      if (!title) setTitle(stripExtension(dropped.name));
-    }
-  }, [title]);
+    addFiles(e.dataTransfer.files);
+  }, [addFiles]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-      if (!title) setTitle(stripExtension(selected.name));
-    }
+    if (e.target.files) addFiles(e.target.files);
+    e.target.value = ''; // 같은 파일 다시 선택 가능하게
   };
 
   const handleSubmit = async () => {
-    if (!file || !title) return;
+    if (files.length === 0 || !title) return;
     setUploading(true);
     setStatus('uploading');
     setErrorMsg('');
 
     try {
-      // 1. Upload PDF + create exam record
       const formData = new FormData();
-      formData.append('file', file);
+      // 파일이 1개면 기존대로, 여러 개면 모두 append
+      for (const f of files) {
+        formData.append('files', f);
+      }
       formData.append('title', title);
       formData.append('university', university);
       if (scoringNote) formData.append('scoringNote', scoringNote);
@@ -87,7 +86,6 @@ export default function ExamUploadPage() {
       }
       const exam = await uploadRes.json();
 
-      // 2. Trigger AI parsing
       setStatus('parsing');
       const parseRes = await fetch(`/api/exams/${exam.id}/parse`, { method: 'POST' });
       if (!parseRes.ok) {
@@ -114,42 +112,55 @@ export default function ExamUploadPage() {
           <CardTitle>기출문제 업로드</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* 드래그앤드롭 영역 */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-10 text-center transition-colors cursor-pointer ${
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
               dragOver ? 'border-blue-500 bg-blue-50' : 'border-zinc-300'
             }`}
-            onClick={() => document.getElementById('pdf-input')?.click()}
+            onClick={() => document.getElementById('file-input')?.click()}
           >
-            {file ? (
-              (() => { const Icon = getFileIcon(file); return (
-              <div className="flex items-center justify-center gap-3">
-                <Icon className="h-8 w-8 text-blue-500" />
-                <div className="text-left">
-                  <p className="font-medium">{file.name}</p>
-                  <p className="text-sm text-zinc-500">
-                    {(file.size / 1024 / 1024).toFixed(1)}MB
-                  </p>
-                </div>
-              </div>
-              ); })()
-            ) : (
-              <div className="space-y-2">
-                <Upload className="h-10 w-10 mx-auto text-zinc-400" />
-                <p className="text-zinc-500">파일을 드래그하거나 클릭하세요</p>
-                <p className="text-xs text-zinc-400">PDF, HWP, Word, JPG, JPEG, PNG, HEIC</p>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Upload className="h-10 w-10 mx-auto text-zinc-400" />
+              <p className="text-zinc-500">파일을 드래그하거나 클릭하세요</p>
+              <p className="text-xs text-zinc-400">PDF, HWP, Word, JPG, JPEG, PNG, HEIC — 여러 파일 선택 가능</p>
+            </div>
             <input
-              id="pdf-input"
+              id="file-input"
               type="file"
               accept={ACCEPTED_EXTENSIONS}
+              multiple
               className="hidden"
               onChange={handleFileChange}
             />
           </div>
+
+          {/* 파일 목록 */}
+          {files.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-zinc-700">{files.length}개 파일 선택됨</p>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {files.map((f, i) => {
+                  const Icon = getFileIcon(f);
+                  return (
+                    <div key={`${f.name}-${i}`} className="flex items-center gap-2 px-3 py-2 bg-zinc-50 rounded-md text-sm">
+                      <Icon className="h-4 w-4 text-blue-500 shrink-0" />
+                      <span className="truncate flex-1">{f.name}</span>
+                      <span className="text-xs text-zinc-400 shrink-0">{formatSize(f.size)}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                        className="text-zinc-400 hover:text-red-500 shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             <div>
@@ -196,20 +207,14 @@ export default function ExamUploadPage() {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!file || !title || uploading}
+              disabled={files.length === 0 || !title || uploading}
               className="w-full"
             >
               {status === 'uploading' && (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  업로드 중...
-                </>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />업로드 중...</>
               )}
               {status === 'parsing' && (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  AI 파싱 중... (30초~1분)
-                </>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />AI 파싱 중... (30초~1분)</>
               )}
               {(status === 'idle' || status === 'error') && '업로드 및 AI 파싱 시작'}
             </Button>
