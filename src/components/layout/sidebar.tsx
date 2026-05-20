@@ -46,7 +46,7 @@ export function Sidebar() {
     <aside className="flex h-screen w-60 flex-col border-r border-orange-200 bg-gradient-to-b from-amber-50 via-orange-50 to-yellow-50">
       {/* 로고 영역 */}
       <div className="flex flex-col items-center border-b border-orange-200 px-4 py-4 bg-white/50">
-        <Image src="/logos/chunsik.jpg" alt="춘식이" width={48} height={48} className="mb-1" />
+        <Image src="/stickers/chunsik-homework.png" alt="춘식이" width={52} height={52} className="mb-1" />
         <span className="text-base font-extrabold tracking-tight text-orange-600">멋진논술연구소</span>
         <span className="text-[10px] text-orange-400 mt-0.5 text-center leading-tight">
           논술 스타강사 홍시표를 도와주는 사이트 🧡

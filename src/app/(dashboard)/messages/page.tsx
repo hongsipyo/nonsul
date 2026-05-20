@@ -392,9 +392,9 @@ export default function MessagesPage() {
             </div>
           ) : messages.length === 0 ? (
             <div className="text-center py-12 text-zinc-400">
-              <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-30" />
-              <p>아직 발송 내역이 없습니다</p>
-              <p className="text-xs mt-1">문자 작성 버튼을 눌러 시작하세요</p>
+              <img src="/stickers/chunsik-sleep.png" alt="춘식이" className="h-16 w-16 mx-auto mb-2" />
+              <p>아직 발송 내역이 없어요!</p>
+              <p className="text-xs mt-1">문자 작성 버튼을 눌러 시작하세요 🐾</p>
             </div>
           ) : (
             <div className="divide-y">

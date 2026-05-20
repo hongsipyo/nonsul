@@ -63,9 +63,9 @@ export default function ExamsPage() {
       ) : exams.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <FileText className="h-10 w-10 mx-auto text-zinc-300 mb-3" />
-            <p className="text-zinc-500">아직 업로드된 시험이 없습니다.</p>
-            <p className="text-sm text-zinc-400 mt-1">파일을 업로드하면 AI가 자동으로 제시문과 문제를 파싱합니다.</p>
+            <img src="/stickers/chunsik-coffee.png" alt="춘식이" className="h-16 w-16 mx-auto mb-3" />
+            <p className="text-zinc-500">아직 업로드된 시험이 없어요!</p>
+            <p className="text-sm text-zinc-400 mt-1">파일을 업로드하면 AI가 자동으로 파싱합니다 🐾</p>
           </CardContent>
         </Card>
       ) : (
