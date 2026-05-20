@@ -62,7 +62,7 @@ export default function DashboardPage() {
       {/* 인사 헤더 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Image src="/stickers/chunsik-love.png" alt="춘식이" width={56} height={56} />
+          <Image src="/stickers/chunsik-love.png" alt="춘식이" width={80} height={80} />
           <div>
             <h1 className="text-2xl font-bold text-zinc-800">홍시표T 논술 작업실</h1>
             <p className="text-sm text-zinc-400">멋진논술연구소</p>
@@ -115,7 +115,7 @@ export default function DashboardPage() {
             </div>
           ) : recentCorrections.length === 0 ? (
             <div className="text-center py-6">
-              <Image src="/stickers/chunsik-zzz.png" alt="춘식이 자는 중" width={64} height={64} className="mx-auto mb-3" />
+              <Image src="/stickers/chunsik-zzz.png" alt="춘식이 자는 중" width={100} height={100} className="mx-auto mb-3" />
               <p className="text-sm text-zinc-500">
                 아직 첨삭 기록이 없어요!
               </p>
@@ -155,13 +155,13 @@ export default function DashboardPage() {
         <CardContent className="py-4">
           <p className="text-xs text-orange-400 text-center mb-3">홍시표T 논술 작업실</p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Image src="/stickers/chunsik-fighting.png" alt="화이팅" width={52} height={52} className="hover:scale-110 transition-transform" title="화이팅!" />
-            <Image src="/stickers/chunsik-coffee.png" alt="카페?" width={52} height={52} className="hover:scale-110 transition-transform" title="카페?" />
-            <Image src="/stickers/chunsik-excited.png" alt="흥분" width={52} height={52} className="hover:scale-110 transition-transform" title="흥분!" />
-            <Image src="/stickers/chunsik-music.png" alt="음악" width={52} height={52} className="hover:scale-110 transition-transform" title="신나~" />
-            <Image src="/stickers/chunsik-sleep.png" alt="잠" width={52} height={52} className="hover:scale-110 transition-transform" title="아 지각" />
-            <Image src="/stickers/chunsik-school.png" alt="등교" width={52} height={52} className="hover:scale-110 transition-transform" title="등교등교" />
-            <Image src="/stickers/chunsik-off.jpg" alt="OFF" width={52} height={52} className="hover:scale-110 transition-transform rounded-lg" title="OFF" />
+            <Image src="/stickers/chunsik-fighting.png" alt="" width={90} height={90} className="hover:scale-110 transition-transform" />
+            <Image src="/stickers/chunsik-coffee.png" alt="" width={90} height={90} className="hover:scale-110 transition-transform" />
+            <Image src="/stickers/chunsik-excited.png" alt="" width={90} height={90} className="hover:scale-110 transition-transform" />
+            <Image src="/stickers/chunsik-music.png" alt="" width={90} height={90} className="hover:scale-110 transition-transform" />
+            <Image src="/stickers/chunsik-sleep.png" alt="" width={90} height={90} className="hover:scale-110 transition-transform" />
+            <Image src="/stickers/chunsik-school.png" alt="" width={90} height={90} className="hover:scale-110 transition-transform" />
+            <Image src="/stickers/chunsik-off.jpg" alt="" width={90} height={90} className="hover:scale-110 transition-transform rounded-lg" />
           </div>
         </CardContent>
       </Card>

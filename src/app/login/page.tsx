@@ -54,7 +54,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm border-orange-200 shadow-lg">
         <CardHeader className="text-center pb-2">
           <div className="flex flex-col items-center gap-2">
-            <Image src="/stickers/chunsik-love.png" alt="춘식이" width={72} height={72} />
+            <Image src="/stickers/chunsik-love.png" alt="춘식이" width={120} height={120} />
             <CardTitle className="text-xl text-orange-600">멋진논술연구소</CardTitle>
             <p className="text-xs text-orange-400">홍시표T 논술 작업실</p>
           </div>
