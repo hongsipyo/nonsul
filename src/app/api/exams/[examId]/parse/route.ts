@@ -39,7 +39,12 @@ function getMimeType(ext: string): string {
  * HEIC/HEIF → JPEG 변환 (sharp 사용)
  */
 async function convertHeicToJpeg(buffer: Buffer): Promise<Buffer> {
-  return Buffer.from(await sharp(buffer).jpeg({ quality: 95 }).toBuffer());
+  try {
+    return Buffer.from(await sharp(buffer).jpeg({ quality: 95 }).toBuffer());
+  } catch {
+    // Vercel의 sharp에 HEIC 디코더 없음 — 클라이언트에서 이미 변환됐어야 함
+    throw new Error('HEIC 파일은 지원되지 않습니다. JPG/PNG로 변환 후 업로드해주세요.');
+  }
 }
 
 /**

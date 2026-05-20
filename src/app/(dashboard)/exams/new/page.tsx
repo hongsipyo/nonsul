@@ -31,6 +31,17 @@ function formatSize(bytes: number) {
   return (bytes / 1024 / 1024).toFixed(1) + 'MB';
 }
 
+/**
+ * HEIC → JPEG 변환 (브라우저에서)
+ * Vercel sharp에 HEIC 디코더가 없어서 반드시 클라이언트에서 변환해야 함
+ */
+async function convertHeicFile(file: File): Promise<File> {
+  const heic2any = (await import('heic2any')).default;
+  const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+  const blob = Array.isArray(result) ? result[0] : result;
+  return new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+}
+
 export default function ExamUploadPage() {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
@@ -43,12 +54,39 @@ export default function ExamUploadPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [progress, setProgress] = useState('');
 
-  const addFiles = useCallback((newFiles: FileList | File[]) => {
+  const [converting, setConverting] = useState(false);
+
+  const addFiles = useCallback(async (newFiles: FileList | File[]) => {
     const accepted = Array.from(newFiles).filter(isAcceptedFile);
     if (accepted.length === 0) return;
-    setFiles((prev) => [...prev, ...accepted]);
-    if (!title && accepted.length > 0) {
-      setTitle(stripExtension(accepted[0].name));
+
+    // HEIC 파일이 있으면 변환
+    const hasHeic = accepted.some((f) => ['heic', 'heif'].includes(getExt(f)));
+    if (hasHeic) setConverting(true);
+
+    try {
+      const processed: File[] = [];
+      for (const f of accepted) {
+        const ext = getExt(f);
+        if (ext === 'heic' || ext === 'heif') {
+          try {
+            processed.push(await convertHeicFile(f));
+          } catch (err) {
+            console.error('HEIC 변환 실패:', err);
+            setStatus('error');
+            setErrorMsg(`HEIC 변환 실패 (${f.name}): iPhone 설정 → 카메라 → 포맷 → "높은 호환성"으로 변경 후 다시 촬영하거나, JPG로 변환해서 올려주세요.`);
+            return;
+          }
+        } else {
+          processed.push(f);
+        }
+      }
+      setFiles((prev) => [...prev, ...processed]);
+      if (!title && accepted.length > 0) {
+        setTitle(stripExtension(accepted[0].name));
+      }
+    } finally {
+      setConverting(false);
     }
   }, [title]);
 
@@ -148,11 +186,18 @@ export default function ExamUploadPage() {
             }`}
             onClick={() => document.getElementById('file-input')?.click()}
           >
-            <div className="space-y-2">
-              <Upload className="h-10 w-10 mx-auto text-zinc-400" />
-              <p className="text-zinc-500">파일을 드래그하거나 클릭하세요</p>
-              <p className="text-xs text-zinc-400">PDF, HWP, Word, JPG, JPEG, PNG, HEIC — 여러 파일 선택 가능</p>
-            </div>
+            {converting ? (
+              <div className="space-y-2">
+                <Loader2 className="h-10 w-10 mx-auto text-blue-500 animate-spin" />
+                <p className="text-zinc-500">HEIC 이미지 변환 중...</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Upload className="h-10 w-10 mx-auto text-zinc-400" />
+                <p className="text-zinc-500">파일을 드래그하거나 클릭하세요</p>
+                <p className="text-xs text-zinc-400">PDF, HWP, Word, JPG, JPEG, PNG, HEIC — 여러 파일 선택 가능</p>
+              </div>
+            )}
             <input
               id="file-input"
               type="file"
@@ -221,7 +266,7 @@ export default function ExamUploadPage() {
               파싱 완료! 시험 상세 페이지로 이동합니다...
             </div>
           ) : (
-            <Button onClick={handleSubmit} disabled={files.length === 0 || !title || uploading} className="w-full">
+            <Button onClick={handleSubmit} disabled={files.length === 0 || !title || uploading || converting} className="w-full">
               {status === 'uploading' && <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{progress || '업로드 중...'}</>}
               {status === 'parsing' && <><Loader2 className="mr-2 h-4 w-4 animate-spin" />AI 파싱 중... (30초~1분)</>}
               {(status === 'idle' || status === 'error') && '업로드 및 AI 파싱 시작'}

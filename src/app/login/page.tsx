@@ -52,7 +52,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">논술첨삭</CardTitle>
+          <CardTitle className="text-xl">멋진논술연구소</CardTitle>
           <p className="text-sm text-zinc-500">
             {mode === 'login' ? '로그인' : '회원가입'}
           </p>
