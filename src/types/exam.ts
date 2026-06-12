@@ -116,6 +116,8 @@ export interface MarginComment {
   y_position: number;
   text: string;
   type: 'improvement' | 'praise' | 'error' | 'suggestion';
+  para?: number;          // 답안 문단 인덱스 (0부터) — 원고지 마킹 위치용
+  quote?: string;         // 해당 문단 내 정확한 구절 — 마킹이 그려질 앵커
 }
 
 export interface Annotation {

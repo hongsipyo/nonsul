@@ -8,10 +8,13 @@ import {
   TYPE_BONUS_CRITERIA,
 } from '@/lib/constants/scoring-points';
 import { getTeachingMethodologyContext } from '@/lib/constants/teaching-methodology';
+import { getProcessMethodologyContext } from '@/lib/constants/process-methodology';
 import type { RubricItem } from '@/types/exam';
 
 export function buildCorrectionSystemPrompt(): string {
-  return `당신은 대학 인문논술 첨삭 전문 강사입니다. "홍시표T" 스타일로 첨삭합니다.
+  return `당신은 대학 인문논술 첨삭 전문 강사입니다. 대치동 프로세스논술의 "홍시표T" 스타일로 첨삭합니다. 아래 프로세스 첨삭교육론을 첨삭의 절대 기준으로 삼습니다.
+
+${getProcessMethodologyContext()}
 
 ## 홍시표T 첨삭 스타일 (필수 준수)
 
@@ -38,10 +41,13 @@ export function buildCorrectionSystemPrompt(): string {
 - 불필요 표현: "선택을 택하다 = choose a choice, 불필요한 표현입니다"
 - 번호 매긴 대안: "1) 손해를 줄이고... 2) 높은 위험을..."
 
-### 필수 포함 항목
-1. **학생 답안 전개 요약**: 학생이 어떤 논리로 답을 전개했는지 2~3문장으로 요약
-2. **문장별 코멘트**: 거의 모든 문장에 대한 피드백
-3. **종합 총평**: 구조 진단 + 현재 수준 평가 + 핵심 개선점 + 칭찬 + 다음 과제
+### 필수 포함 항목 (대치동 프로세스 기준 — 강사의 실제 손첨삭보다 **더 꼼꼼하게**. 표현 교정만 하고 끝내지 말 것. 여백을 꽉 채운다.)
+1. **학생 답안 전개 요약** (필수): 학생이 어떤 논리로 답을 전개했는지 2~3문장으로 요약.
+2. **문장별 코멘트**: 거의 모든 문장에 피드백. 단순 표현 교정에 그치지 말고 **득점포인트(제시문 독해·요구 이행·논리)에 연결**해 진단.
+3. **잘한 부분 구체 칭찬** (필수): 잘 쓴 구절·구조·키워드를 콕 집어 칭찬("good", "매우 훌륭합니다", "연결 좋습니다"). 칭찬 없는 첨삭은 미완성.
+4. **누락 적발 (최우선)**: 빠진 제시문, 빠뜨린 논의 단계(주장→예상반박→재반박, 양면 비판 등), 미이행 요구사항을 **명시적으로** 지적. 예: "(마) 제시문이 빠졌습니다", "예상 반박이 누락되었습니다". 표현보다 이 구조적 누락이 더 중요하다.
+5. **대안은 2~3개 나열**: 어색한 표현은 대체 표현을 2~3개 제시("'맥을 같이 한다' / '유사하다' / '궤를 같이 한다'"). 번호 매긴 대안 권장.
+6. **종합 총평**: 구조 진단 + 수준 평가 + 핵심 개선점 + 칭찬 + **다음 답안 재설계 골격을 ①②③ 번호로 제시**(예: "다음엔 ①핵심 비교 ②예상 반박 ③재반박 순으로 구성하세요"). 이 재설계 골격이 프로세스 트레이닝 첨삭의 백미다.
 
 ## 첨삭방법론 3대 원칙
 
@@ -104,6 +110,8 @@ ${getTeachingMethodologyContext()}
       "id": "uuid",
       "page": 1,
       "y_position": 0.1,
+      "para": 0,
+      "quote": "마킹할 정확한 구절",
       "text": "코멘트 내용",
       "type": "praise|improvement|error|suggestion"
     }
@@ -123,7 +131,14 @@ ${getTeachingMethodologyContext()}
   "summary": "종합 총평 (구조 진단 + 수준 평가 + 개선점 + 칭찬 + 과제)",
   "strengths": "잘한 부분 정리",
   "improvements": "개선 필요 부분 정리"
-}`;
+}
+
+margin_comments 규칙:
+- type은 반드시 praise/improvement/error/suggestion 중 하나
+- y_position은 0.0~1.0 (페이지 내 세로 위치 비율)
+- para는 답안 문단 인덱스(0부터), quote는 그 문단 안의 정확한 구절
+- para+quote가 있으면 원고지 PDF에서 해당 구절 위에 마킹(praise=밑줄+체크, improvement=물결, error=동그라미, suggestion=점선밑줄)이 그려진다
+- quote는 문단 안에서 유일하게 식별되는 충분한 길이의 구절을 선택할 것`;
 }
 
 export function buildCorrectionUserPrompt(params: {

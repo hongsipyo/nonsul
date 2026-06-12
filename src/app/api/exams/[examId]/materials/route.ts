@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateExamPptx } from '@/lib/export/pptx-generator';
-import { generateJSON, SECTIONS_SCHEMA, MODELS_PRO } from '@/lib/ai/client';
+import { generateJSON, SECTIONS_SCHEMA, PROOFREAD_SCHEMA, MODELS_PRO } from '@/lib/ai/client';
 import { buildExplanationPrompt } from '@/lib/claude/prompts/explanation-generation';
 import type { Passage, Question, BrandType } from '@/types/exam';
 
@@ -14,6 +14,80 @@ function examToText(passages: Passage[], questions: Question[]): string {
     text += '\n\n';
   }
   return text;
+}
+
+const PROOFREAD_PROMPT = `당신은 한국어 교정 전문가이다. 아래 텍스트에서 오류를 찾아 교정하라.
+
+## 검수 항목
+1. 맞춤법 오류 (예: "됬다"→"됐다")
+2. 띄어쓰기 오류 (예: "할수있다"→"할 수 있다")
+3. 문장부호 오류 (쉼표, 마침표, 괄호 등)
+4. 조사 오류 (예: "을/를", "이/가", "은/는" 잘못된 사용)
+5. 어법 오류 (예: "~로써"↔"~로서")
+
+## 규칙
+- 발견된 문제만 보고. 정상인 부분은 언급하지 말 것.
+- 원문의 의미와 내용은 절대 바꾸지 말 것. 표기/띄어쓰기만 교정.
+- original: 원문에서 해당 부분 (앞뒤 맥락 포함 30자 이내)
+- corrected: 교정된 결과 (같은 길이의 맥락)
+- 문제 없으면 issues를 빈 배열로
+
+## 검수 대상 텍스트
+`;
+
+interface ProofreadIssue {
+  type: string;
+  original: string;
+  corrected: string;
+  reason: string;
+}
+
+/** 교정 결과를 텍스트에 적용 */
+function applyCorrections(text: string, issues: ProofreadIssue[]): string {
+  let result = text;
+  // 긴 original부터 적용 (짧은 것이 긴 것의 일부일 수 있으므로)
+  const sorted = [...issues].sort((a, b) => b.original.length - a.original.length);
+  for (const issue of sorted) {
+    if (issue.original && issue.corrected && issue.original !== issue.corrected) {
+      result = result.split(issue.original).join(issue.corrected);
+    }
+  }
+  return result;
+}
+
+/** 제시문/문제 텍스트를 자동 교정 */
+async function proofreadPassagesAndQuestions(
+  passages: Passage[],
+  questions: Question[],
+): Promise<{ passages: Passage[]; questions: Question[] }> {
+  try {
+    const allText = examToText(passages, questions);
+    const truncated = allText.length > 15000 ? allText.substring(0, 15000) : allText;
+
+    const result = await generateJSON<{ issues: ProofreadIssue[] }>({
+      prompt: PROOFREAD_PROMPT + truncated,
+      responseSchema: PROOFREAD_SCHEMA,
+    });
+
+    if (!result.issues || result.issues.length === 0) {
+      return { passages, questions };
+    }
+
+    // 교정 적용
+    const correctedPassages = passages.map(p => ({
+      ...p,
+      text: applyCorrections(p.text, result.issues),
+    }));
+    const correctedQuestions = questions.map(q => ({
+      ...q,
+      text: applyCorrections(q.text, result.issues),
+    }));
+
+    return { passages: correctedPassages, questions: correctedQuestions };
+  } catch {
+    // 교정 실패해도 원본 그대로 진행
+    return { passages, questions };
+  }
 }
 
 export async function POST(
@@ -45,10 +119,17 @@ export async function POST(
 
   try {
     if (materialType === 'ppt') {
+      // 띄어쓰기/맞춤법 자동 교정 후 PPT 생성
+      const { passages: correctedPassages, questions: correctedQuestions } =
+        await proofreadPassagesAndQuestions(
+          exam.parsed_passages,
+          exam.parsed_questions || [],
+        );
+
       const pptx = generateExamPptx({
         title: exam.title,
-        passages: exam.parsed_passages,
-        questions: exam.parsed_questions || [],
+        passages: correctedPassages,
+        questions: correctedQuestions,
         brand,
         pageImageUrls: exam.parsed_metadata?.page_image_urls || {},
       });

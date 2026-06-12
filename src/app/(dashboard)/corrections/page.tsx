@@ -27,6 +27,10 @@ export default function CorrectionsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'generating' | 'done' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  // 일괄 첨삭
+  const [batchQueue, setBatchQueue] = useState<{ name: string; school: string; files: File[] }[]>([]);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchLog, setBatchLog] = useState<{ name: string; state: 'wait' | 'doing' | 'done' | 'fail'; msg?: string }[]>([]);
 
   useEffect(() => {
     fetch('/api/exams')
@@ -89,6 +93,48 @@ export default function CorrectionsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const processOne = async (name: string, school: string, fileList: File[]) => {
+    const fd = new FormData();
+    fd.append('examId', selectedExam);
+    fd.append('studentName', name);
+    fd.append('studentSchool', school);
+    fileList.forEach((f) => fd.append('files', f));
+    const up = await fetch('/api/corrections', { method: 'POST', body: fd });
+    if (!up.ok) throw new Error((await up.json()).error || '업로드 실패');
+    const { correctionId } = await up.json();
+    const gen = await fetch(`/api/corrections/${correctionId}/generate`, { method: 'POST' });
+    if (!gen.ok) throw new Error((await gen.json()).error || 'AI 첨삭 실패');
+    return correctionId;
+  };
+
+  const addToBatch = () => {
+    if (!studentName.trim() || files.length === 0) return;
+    setBatchQueue((q) => [...q, { name: studentName.trim(), school: studentSchool.trim(), files }]);
+    setStudentName('');
+    setStudentSchool('');
+    setFiles([]);
+  };
+
+  const removeFromBatch = (idx: number) => setBatchQueue((q) => q.filter((_, i) => i !== idx));
+
+  const runBatch = async () => {
+    if (!selectedExam || batchQueue.length === 0) return;
+    setBatchRunning(true);
+    setBatchLog(batchQueue.map((b) => ({ name: b.name, state: 'wait' as const })));
+    for (let i = 0; i < batchQueue.length; i++) {
+      setBatchLog((log) => log.map((l, idx) => (idx === i ? { ...l, state: 'doing' } : l)));
+      try {
+        await processOne(batchQueue[i].name, batchQueue[i].school, batchQueue[i].files);
+        setBatchLog((log) => log.map((l, idx) => (idx === i ? { ...l, state: 'done' } : l)));
+      } catch (err) {
+        setBatchLog((log) => log.map((l, idx) => (idx === i ? { ...l, state: 'fail', msg: err instanceof Error ? err.message : '오류' } : l)));
+      }
+    }
+    setBatchRunning(false);
+    fetch('/api/corrections').then((r) => r.json()).then((d) => setCorrections(Array.isArray(d) ? d : []));
+    setBatchQueue([]);
   };
 
   return (
@@ -201,6 +247,46 @@ export default function CorrectionsPage() {
                 {(status === 'idle' || status === 'error') && 'AI 첨삭 시작'}
               </Button>
             )}
+
+            {/* ===== 일괄 첨삭 ===== */}
+            <div className="border-t pt-4 mt-2 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-zinc-600">일괄 첨삭 (여러 학생)</p>
+                <Button variant="outline" size="sm" onClick={addToBatch} disabled={!studentName.trim() || files.length === 0 || batchRunning}>
+                  + 대기열 추가
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-400">학생 이름·답안을 채우고 ‘대기열 추가’를 반복한 뒤, 아래 버튼으로 한 번에 처리합니다.</p>
+
+              {batchQueue.length > 0 && (
+                <div className="space-y-1">
+                  {batchQueue.map((b, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm bg-zinc-50 rounded px-3 py-1.5">
+                      <span>{b.name} {b.school && <span className="text-zinc-400">· {b.school}</span>} <span className="text-zinc-400">({b.files.length}장)</span></span>
+                      <button onClick={() => removeFromBatch(i)} disabled={batchRunning} className="text-zinc-400 hover:text-red-500 text-xs">삭제</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {batchLog.length > 0 && (
+                <div className="space-y-1">
+                  {batchLog.map((l, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm">
+                      <span>{l.state === 'done' ? '✅' : l.state === 'fail' ? '❌' : l.state === 'doing' ? '⏳' : '⏸️'}</span>
+                      <span>{l.name}</span>
+                      {l.msg && <span className="text-xs text-red-500">{l.msg}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {batchQueue.length > 0 && (
+                <Button onClick={runBatch} disabled={!selectedExam || batchRunning} className="w-full" variant="secondary">
+                  {batchRunning ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> 일괄 첨삭 중...</> : `일괄 첨삭 시작 (${batchQueue.length}명)`}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 

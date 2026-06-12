@@ -1,0 +1,14 @@
+{
+  "name": "nonsul-mcp-server",
+  "version": "1.0.0",
+  "description": "논술첨삭 앱 Supabase MCP 서버 — Claude Desktop에서 DB 직접 접근",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@supabase/supabase-js": "^2.106.0"
+  }
+}

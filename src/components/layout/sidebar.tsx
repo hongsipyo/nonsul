@@ -16,6 +16,7 @@ import {
   Calendar,
   Stethoscope,
   MessageSquare,
+  Star,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -23,6 +24,7 @@ const nav = [
   { href: '/', label: '대시보드', icon: LayoutDashboard, emoji: '🏠', group: 'main' },
   { href: '/exams', label: '시험 관리', icon: FileText, emoji: '📝', group: '수업' },
   { href: '/corrections', label: '첨삭', icon: PenTool, emoji: '✏️', group: '수업' },
+  { href: '/best-answers', label: '우수답안', icon: Star, emoji: '⭐', group: '수업' },
   { href: '/oral-exam', label: '구술 면접', icon: Mic, emoji: '🎤', group: '수업' },
   { href: '/students', label: '학생 관리', icon: Users, emoji: '👨‍🎓', group: '학원' },
   { href: '/classes', label: '반 관리', icon: BookOpen, emoji: '📚', group: '학원' },

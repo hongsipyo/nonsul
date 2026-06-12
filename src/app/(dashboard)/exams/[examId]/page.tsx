@@ -30,6 +30,7 @@ export default function ExamDetailPage() {
   const [proofreading, setProofreading] = useState(false);
   const [proofreadResult, setProofreadResult] = useState<{ issues: ProofreadIssue[]; summary: string; total_issues: number } | null>(null);
   const [proofreadTarget, setProofreadTarget] = useState<string>('');
+  const [applyingCorrections, setApplyingCorrections] = useState(false);
 
   useEffect(() => {
     fetch(`/api/exams/${examId}`)
@@ -146,6 +147,30 @@ export default function ExamDetailPage() {
     }
   };
 
+  /** 검수 결과를 파싱 데이터에 일괄 반영 */
+  const handleApplyCorrections = async () => {
+    if (!proofreadResult?.issues?.length || !exam) return;
+    setApplyingCorrections(true);
+    try {
+      const res = await fetch(`/api/exams/${examId}/apply-corrections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issues: proofreadResult.issues, target: proofreadTarget }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '반영 실패');
+      // 반영 후 exam 데이터 새로고침
+      const examRes = await fetch(`/api/exams/${examId}`);
+      const updatedExam = await examRes.json();
+      setExam(updatedExam);
+      setProofreadResult(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '교정 반영 오류');
+    } finally {
+      setApplyingCorrections(false);
+    }
+  };
+
   /** 콘텐츠에서 검수용 텍스트 추출 */
   const extractTextForProofread = (result: any, type: '해설지' | '채점기준표' | '파싱'): string => {
     if (type === '파싱' && exam?.parsed_passages) {
@@ -176,9 +201,17 @@ export default function ExamDetailPage() {
   const handleDownloadExamPaperPDF = async () => {
     if (!exam?.parsed_passages) return;
     const { generateExamPaperPDF } = await import('@/lib/export/exam-paper-pdf');
+    // title에서 수업 정보 추출 (예: "가톨릭대 파이널 특강 4강")
+    const titleParts = exam.title.split(/\s+/);
+    const uniName = exam.university || titleParts[0] || exam.title;
+    const classInfo = exam.university
+      ? exam.title.replace(exam.university, '').trim()
+      : titleParts.slice(1).join(' ');
     const doc = await generateExamPaperPDF({
       examTitle: exam.title,
-      university: exam.university || undefined,
+      university: uniName,
+      year: exam.exam_year ? String(exam.exam_year) : undefined,
+      className: classInfo || undefined,
       passages: exam.parsed_passages || [],
       questions: exam.parsed_questions || [],
       brand: '프로세스',
@@ -259,6 +292,20 @@ export default function ExamDetailPage() {
                 <Badge variant="outline">
                   {proofreadResult.total_issues}건 발견
                 </Badge>
+                {proofreadResult.total_issues > 0 && proofreadTarget === 'OCR 파싱' && (
+                  <Button
+                    onClick={handleApplyCorrections}
+                    disabled={applyingCorrections}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {applyingCorrections ? (
+                      <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />반영 중...</>
+                    ) : (
+                      <><CheckCircle className="mr-1.5 h-3.5 w-3.5" />일괄 반영</>
+                    )}
+                  </Button>
+                )}
                 <button onClick={() => setProofreadResult(null)} className="text-xs text-zinc-400 underline">닫기</button>
               </div>
             </div>

@@ -175,6 +175,49 @@ export default function MessagesPage() {
     }
   };
 
+  // 실제 문자 발송 (솔라피)
+  const handleSend = async () => {
+    if (!content.trim()) return;
+    const recipientStudentIds: string[] = [];
+    if (recipientType === 'individual' && selectedStudentId) {
+      recipientStudentIds.push(selectedStudentId);
+    } else if (recipientType === 'class' && selectedClassName) {
+      students.filter((s) => s.class_name === selectedClassName).forEach((s) => recipientStudentIds.push(s.id));
+    } else if (recipientType === 'all') {
+      students.forEach((s) => recipientStudentIds.push(s.id));
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title || msgType,
+          content,
+          type: msgType,
+          recipient_type: recipientType,
+          recipient_student_ids: recipientStudentIds,
+          recipient_class_name: recipientType === 'class' ? selectedClassName : null,
+          student_id: recipientType === 'individual' ? selectedStudentId || null : null,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 503) {
+        alert(`${data.error}\n\n${data.hint}\n\n(수신 예정: ${(data.wouldSendTo || []).join(', ') || '없음'})`);
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || '발송 실패');
+      if (data.message) setMessages([data.message, ...messages]);
+      alert(`발송 완료 ✓  성공 ${data.sentCount}건${data.failedCount ? `, 실패 ${data.failedCount}건` : ''}`);
+      resetForm();
+      setDialogOpen(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '발송 오류');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const resetForm = () => {
     setMsgType('일반');
     setRecipientType('individual');
@@ -334,13 +377,21 @@ export default function MessagesPage() {
                 </Button>
                 <Button
                   onClick={handleSave}
+                  variant="outline"
+                  disabled={saving || !content.trim()}
+                  className="flex-1"
+                >
+                  기록만 저장
+                </Button>
+                <Button
+                  onClick={handleSend}
                   disabled={saving || !content.trim()}
                   className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
                 >
                   {saving ? (
-                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> 저장 중...</>
+                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> 발송 중...</>
                   ) : (
-                    <><Send className="h-4 w-4 mr-1" /> 발송 완료 저장</>
+                    <><Send className="h-4 w-4 mr-1" /> 문자 발송</>
                   )}
                 </Button>
               </div>

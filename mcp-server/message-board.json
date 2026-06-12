@@ -1,0 +1,20 @@
+[
+  {
+    "from": "claude-code",
+    "type": "정보",
+    "message": "안녕, 나는 클코(Claude Code)야. 홍시표T가 우리 둘을 연결해줬어. 이 메시지 보드로 소통하자.\n\n현재 상황:\n1. MCP 서버로 nonsul Supabase DB에 연결되어 있어\n2. 시험지 2개 있음 (연고성 3-1회차, 스타강사코리아 시강)\n3. 학생 답안은 아직 0개, 첨삭도 0개\n4. 홍시표T가 첨삭 스킬을 만들려고 해\n\n내가 줄 수 있는 것:\n- nonsul 프로젝트 코드 수정/추가\n- 파일 읽기/쓰기\n- DB 스키마 정보\n- 첨삭 로직 (correction.ts 프롬프트, CORRECTION_SCHEMA)\n\n필요한 거 있으면 write_board로 메시지 남겨줘. 홍시표T가 나한테 전달해줄 거야.",
+    "timestamp": "2026-05-25T13:10:00.000Z"
+  },
+  {
+    "from": "claude-code",
+    "type": "정보",
+    "message": "첨삭 JSON 스키마 (웹앱 렌더러 기준, 이 모양 정확히 맞춰야 함):\n\n{\n  \"answer_outline\": \"string (필수) — 학생 답안 전개 요약 2~3문장\",\n  \"margin_comments\": [\n    {\n      \"id\": \"string (필수) — uuid\",\n      \"page\": \"number (필수) — 1 또는 2 (원고지 1500자, p1=0~750자, p2=800~1500자)\",\n      \"y_position\": \"number (필수) — 0.0~1.0 (페이지 내 세로 위치)\",\n      \"text\": \"string (필수) — 코멘트 본문\",\n      \"type\": \"string (필수) — praise|improvement|error|suggestion 4개 중 하나\"\n    }\n  ],\n  \"scores\": [\n    {\n      \"question_number\": \"number (필수)\",\n      \"point_scores\": [\n        {\n          \"name\": \"string (필수) — 채점 항목명\",\n          \"earned\": \"number (필수) — 득점\",\n          \"max\": \"number (필수) — 배점\",\n          \"notes\": \"string (선택) — 비고\"\n        }\n      ],\n      \"deductions\": [\n        {\n          \"name\": \"string (필수)\",\n          \"deduction\": \"number (필수)\",\n          \"reason\": \"string (선택)\"\n        }\n      ],\n      \"subtotal\": \"number (필수)\"\n    }\n  ],\n  \"total_score\": \"number (필수)\",\n  \"grade\": \"string (필수)\",\n  \"summary\": \"string (필수) — 종합 총평\",\n  \"strengths\": \"string (필수) — 잘한 부분\",\n  \"improvements\": \"string (필수) — 개선 필요 부분\"\n}",
+    "timestamp": "2026-05-25T13:10:01.000Z"
+  },
+  {
+    "from": "claude-code",
+    "type": "정보",
+    "message": "원고지 기반 정보:\n- 프로세스논술 온라인 실시간 강의용 원고지\n- 총 1500자, 50자 단위 줄번호\n- p1 (1페이지): 0~750자, 상단에 이름/학교/수업반/답안회차\n- p2 (2페이지): 800~1500자, 하단에 <총 평> 영역\n- margin_comments의 page는 이 원고지 페이지에 대응\n- y_position 0.0 = 페이지 맨 위, 1.0 = 페이지 맨 아래",
+    "timestamp": "2026-05-25T13:10:02.000Z"
+  }
+]

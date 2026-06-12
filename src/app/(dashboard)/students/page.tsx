@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Users, Loader2, Search, Pencil, Trash2, Phone, GraduationCap } from 'lucide-react';
+import { Plus, Users, Loader2, Search, Pencil, Trash2, Phone, GraduationCap, Download } from 'lucide-react';
 import Link from 'next/link';
 import type { Student } from '@/types/exam';
 
@@ -178,6 +178,17 @@ export default function StudentsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">학생 관리</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const q = classFilter !== ALL_CLASSES ? `?class=${encodeURIComponent(classFilter)}` : '';
+              window.location.href = `/api/export/students-xlsx${q}`;
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {classFilter !== ALL_CLASSES ? `${classFilter} 엑셀` : '엑셀 내보내기 (반 선택)'}
+          </Button>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger>
             <Button className="bg-orange-500 hover:bg-orange-600 text-white">
@@ -224,6 +235,7 @@ export default function StudentsPage() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Search & Filter */}

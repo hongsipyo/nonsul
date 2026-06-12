@@ -8,6 +8,7 @@ import { writeFile, readFile, readdir, mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import sharp from 'sharp';
+import mammoth from 'mammoth';
 
 const execAsync = promisify(exec);
 
@@ -93,50 +94,66 @@ async function pdfToPageImages(pdfBuffer: Buffer): Promise<{ page: number; buffe
 }
 
 /**
- * HWP/DOC/DOCX → PDF 변환 (LibreOffice 사용)
- * LibreOffice 없으면 에러 throw
+ * DOCX → 텍스트 추출 (mammoth 사용, Vercel 호환)
  */
-async function convertDocToPdf(buffer: Buffer, ext: string): Promise<Buffer> {
-  const tempDir = await mkdtemp(join(tmpdir(), 'nonsul-doc-'));
-  const inputPath = join(tempDir, `input.${ext}`);
+async function extractDocxText(buffer: Buffer): Promise<string> {
+  const result = await mammoth.extractRawText({ buffer });
+  if (!result.value || result.value.trim().length === 0) {
+    throw new Error('DOCX에서 텍스트를 추출할 수 없습니다.');
+  }
+  return result.value;
+}
 
+/**
+ * HWP → 텍스트 추출 (hwp.js 사용, Vercel 호환)
+ */
+async function extractHwpText(buffer: Buffer): Promise<string> {
   try {
-    await writeFile(inputPath, buffer);
+    const hwpjs = await import('hwp.js');
+    const parsed = hwpjs.parse(buffer);
+    const texts: string[] = [];
 
-    // LibreOffice 경로 탐색
-    const loPaths = [
-      'libreoffice',
-      '/Applications/LibreOffice.app/Contents/MacOS/soffice',
-      '/usr/bin/libreoffice',
-      'soffice',
-    ];
-
-    let converted = false;
-    for (const loPath of loPaths) {
-      try {
-        await execAsync(
-          `"${loPath}" --headless --convert-to pdf --outdir "${tempDir}" "${inputPath}"`,
-          { timeout: 60000 }
-        );
-        converted = true;
-        break;
-      } catch {
-        continue;
+    // hwp.js parse 결과에서 텍스트 추출
+    function walkNode(node: any) {
+      if (!node) return;
+      if (typeof node === 'string') { texts.push(node); return; }
+      if (node.text) texts.push(node.text);
+      if (node.content) texts.push(node.content);
+      if (node.children) {
+        for (const child of node.children) walkNode(child);
+      }
+      if (Array.isArray(node)) {
+        for (const item of node) walkNode(item);
       }
     }
 
-    if (!converted) {
-      throw new Error(
-        'HWP/Word 파일 변환을 위해 LibreOffice가 필요합니다. ' +
-        'PDF로 변환 후 다시 업로드해주세요.'
-      );
-    }
+    walkNode(parsed);
 
-    const pdfPath = join(tempDir, 'input.pdf');
-    return readFile(pdfPath);
-  } finally {
-    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    if (texts.length === 0) {
+      throw new Error('HWP 텍스트 추출 실패');
+    }
+    return texts.join('\n');
+  } catch {
+    throw new Error(
+      'HWP 파일 텍스트 추출에 실패했습니다. PDF로 변환 후 다시 업로드해주세요.'
+    );
   }
+}
+
+/**
+ * 문서(DOCX/HWP/DOC) 텍스트 추출
+ */
+async function extractDocText(buffer: Buffer, ext: string): Promise<string> {
+  if (ext === 'docx') {
+    return extractDocxText(buffer);
+  }
+  if (ext === 'hwp') {
+    return extractHwpText(buffer);
+  }
+  if (ext === 'doc') {
+    throw new Error('DOC(구형 Word) 파일은 지원되지 않습니다. DOCX 또는 PDF로 변환 후 업로드해주세요.');
+  }
+  throw new Error(`지원하지 않는 파일 형식: ${ext}`);
 }
 
 /**
@@ -280,33 +297,15 @@ export async function POST(
       }
 
     } else if (allDocs.length > 0 && allImages.length === 0 && allPdfs.length === 0) {
-      // 문서(HWP/DOC/DOCX): 첫 번째 문서만 변환
-      const pdfBuffer = await convertDocToPdf(allDocs[0].buffer, allDocs[0].ext);
-      const base64 = pdfBuffer.toString('base64');
+      // 문서(HWP/DOCX): 텍스트 직접 추출 → Gemini에 텍스트로 전달 (OCR 불필요)
+      const docText = await extractDocText(allDocs[0].buffer, allDocs[0].ext);
 
       parsed = await generateJSON({
         systemPrompt: EXAM_PARSE_SYSTEM_PROMPT,
-        prompt: OCR_ENHANCED_PROMPT,
-        pdfBase64: base64,
+        prompt: `아래는 시험지 원문 텍스트입니다. 제시문과 문제를 구조화하여 JSON으로 반환하세요.\n\n## 지침\n- 원문 텍스트를 그대로 사용 (수정 금지)\n- 제시문 라벨: (가), (나), (다) 등\n- 문제 번호, 배점, 자수 정확히 추출\n- 표/그래프가 텍스트로 표현되어 있으면 table_markdown에 포함\n\nJSON만 반환하세요.\n\n## 원문\n${docText}`,
         responseSchema: EXAM_PARSE_SCHEMA,
         models: MODELS_PRO,
       });
-
-      try {
-        const pageImages = await pdfToPageImages(pdfBuffer);
-        for (const img of pageImages) {
-          const fileName = `exam-pages/${examId}/page_${img.page}.png`;
-          const { error: uploadErr } = await supabase.storage
-            .from('exam-pdfs')
-            .upload(fileName, img.buffer, { contentType: 'image/png', upsert: true });
-          if (!uploadErr) {
-            const { data: urlData } = supabase.storage.from('exam-pdfs').getPublicUrl(fileName);
-            pageImageUrls[img.page] = urlData?.publicUrl || '';
-          }
-        }
-      } catch (imgErr) {
-        console.error('문서 페이지 이미지 변환 실패:', imgErr);
-      }
 
     } else {
       // 혼합 파일: 이미지와 PDF를 모두 이미지로 변환해서 합침

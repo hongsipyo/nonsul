@@ -16,15 +16,22 @@ import {
   CheckCircle,
   Lightbulb,
   ArrowLeft,
+  Pencil,
+  Save,
+  X,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { RedPenViewer } from '@/components/correction/red-pen-viewer';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface CorrectionData {
   id: string;
   status: string;
   grade?: string;
   total_score?: number;
+  is_best_answer?: boolean;
   summary?: string;
   answer_outline?: string;
   strengths?: string;
@@ -101,6 +108,28 @@ export default function CorrectionDetailPage() {
   const [data, setData] = useState<CorrectionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [commentFilter, setCommentFilter] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Partial<CorrectionData>>({});
+  const [bestSaving, setBestSaving] = useState(false);
+
+  const toggleBest = async () => {
+    setBestSaving(true);
+    try {
+      const res = await fetch(`/api/corrections/${correctionId}/best-answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || '실패');
+      const { is_best_answer } = await res.json();
+      setData((prev) => (prev ? { ...prev, is_best_answer } : prev));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '오류');
+    } finally {
+      setBestSaving(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/corrections/${correctionId}`)
@@ -129,6 +158,61 @@ export default function CorrectionDetailPage() {
     const name = data!.student_answers?.student_name || '학생';
     const exam = data!.exams?.title || '첨삭';
     doc.save(`${name}_${exam}_첨삭결과.pdf`);
+  };
+
+  const startEdit = () => {
+    if (!data) return;
+    setForm({
+      total_score: data.total_score,
+      grade: data.grade,
+      answer_outline: data.answer_outline,
+      summary: data.summary,
+      strengths: data.strengths,
+      improvements: data.improvements,
+      margin_comments: data.margin_comments ? [...data.margin_comments] : [],
+    });
+    setEditing(true);
+  };
+
+  const updateComment = (idx: number, text: string) => {
+    setForm((f) => ({
+      ...f,
+      margin_comments: (f.margin_comments || []).map((c, i) => (i === idx ? { ...c, text } : c)),
+    }));
+  };
+
+  const deleteComment = (idx: number) => {
+    setForm((f) => ({
+      ...f,
+      margin_comments: (f.margin_comments || []).filter((_, i) => i !== idx),
+    }));
+  };
+
+  const saveEdit = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        total_score: form.total_score != null ? Number(form.total_score) : null,
+        grade: form.grade,
+        answer_outline: form.answer_outline,
+        summary: form.summary,
+        strengths: form.strengths,
+        improvements: form.improvements,
+        margin_comments: form.margin_comments,
+      };
+      const res = await fetch(`/api/corrections/${correctionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || '저장 실패');
+      setData((prev) => (prev ? { ...prev, ...payload } as CorrectionData : prev));
+      setEditing(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '저장 오류');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -193,11 +277,39 @@ export default function CorrectionDetailPage() {
             </div>
           )}
         </div>
-        {data.status === 'completed' && (
-          <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="shrink-0">
-            <Download className="h-4 w-4 mr-1" />
-            PDF 다운로드
-          </Button>
+        {data.status === 'completed' && !editing && (
+          <div className="flex gap-2 shrink-0">
+            <Button
+              variant={data.is_best_answer ? 'default' : 'outline'}
+              size="sm"
+              onClick={toggleBest}
+              disabled={bestSaving}
+              className={data.is_best_answer ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''}
+            >
+              <Star className={`h-4 w-4 mr-1 ${data.is_best_answer ? 'fill-current' : ''}`} />
+              {data.is_best_answer ? '우수답안 ✓' : '우수답안'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={startEdit}>
+              <Pencil className="h-4 w-4 mr-1" />
+              수정
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+              <Download className="h-4 w-4 mr-1" />
+              PDF
+            </Button>
+          </div>
+        )}
+        {editing && (
+          <div className="flex gap-2 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={saving}>
+              <X className="h-4 w-4 mr-1" />
+              취소
+            </Button>
+            <Button size="sm" onClick={saveEdit} disabled={saving} className="bg-orange-500 hover:bg-orange-600 text-white">
+              {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+              저장
+            </Button>
+          </div>
         )}
       </div>
 
@@ -221,7 +333,83 @@ export default function CorrectionDetailPage() {
         </Card>
       )}
 
-      {data.status === 'completed' && (
+      {/* ===== 수정 모드 ===== */}
+      {editing && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">점수 · 등급</CardTitle>
+            </CardHeader>
+            <CardContent className="flex gap-4">
+              <div className="w-32">
+                <label className="text-xs text-zinc-500">총점</label>
+                <Input
+                  type="number"
+                  value={form.total_score ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, total_score: e.target.value === '' ? undefined : Number(e.target.value) }))}
+                />
+              </div>
+              <div className="w-32">
+                <label className="text-xs text-zinc-500">등급</label>
+                <Input
+                  value={form.grade ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {([
+            ['answer_outline', '답안 전개 요약'],
+            ['strengths', '잘한 부분'],
+            ['improvements', '개선 포인트'],
+            ['summary', '종합 총평'],
+          ] as const).map(([key, label]) => (
+            <Card key={key}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">{label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  rows={key === 'summary' ? 5 : 3}
+                  value={(form[key] as string) ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                />
+              </CardContent>
+            </Card>
+          ))}
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">문장별 코멘트 ({(form.margin_comments || []).length}개)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(form.margin_comments || []).map((c, i) => {
+                const config = commentTypeConfig[c.type] || commentTypeConfig.suggestion;
+                return (
+                  <div key={i} className={`flex items-start gap-2 rounded-lg p-2 border ${config.bg}`}>
+                    <span className={`text-xs font-bold ${config.color} shrink-0 mt-2 w-10`}>{config.label}</span>
+                    <Textarea
+                      rows={2}
+                      value={c.text}
+                      onChange={(e) => updateComment(i, e.target.value)}
+                      className="flex-1 bg-white"
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => deleteComment(i)} className="shrink-0 text-red-500 hover:text-red-700">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+              {(form.margin_comments || []).length === 0 && (
+                <p className="text-sm text-zinc-400 text-center py-2">코멘트 없음</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {data.status === 'completed' && !editing && (
         <>
           {/* ===== 답안 전개 요약 — 눈에 확 띄게 ===== */}
           {data.answer_outline && (
