@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/api/process-pdf') && // MCP·코워크 PDF 생성(자체 시크릿 가드)
     !request.nextUrl.pathname.startsWith('/_next')
   ) {
     // API 요청은 401 JSON 반환

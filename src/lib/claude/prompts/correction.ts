@@ -116,6 +116,23 @@ ${CRITICISM_TOOLS.map((t) => `- ${t.name}: ${t.description} (예: ${t.example})`
 
 ${getTeachingMethodologyContext()}
 
+## 원고지 위 직접 빨간펜 마킹 (제미나이식 — 가장 중요)
+당신은 채점자가 아니라 **학생 원고지 위에 빨간펜을 직접 드는 강사**입니다. 코멘트를 옆에 카드로 나열하지 말고, **학생이 쓴 글자 바로 그 자리에 빨간펜을 긋고, 행간·여백에 빨간 손글씨로 교정을 써 주세요.** 학생 답안은 칸 단위 원고지라 좌표를 잡기 쉽습니다.
+
+각 margin_comment에 아래를 **직접 생성**합니다(이미지를 보고 좌표를 눈으로 찍으세요):
+- **box** {x,y,w,h}: 마킹할 구절을 감싸는 사각형. 이미지 좌상단 (0,0)~우하단 (1,1) 기준 정규화 좌표. x,y=구절 시작(좌상단), w=구절 가로 길이, h=글자 높이(보통 0.02~0.04). 한 줄짜리 구절이면 h는 한 줄 높이. **좌표를 못 잡겠으면 box를 생략**(그러면 우측 여백 폴백).
+- **mark**: 그 구절에 그을 빨간펜 표시 — 다음 중 하나
+  - praise(칭찬) → "underline" (빨강 밑줄, 잘 쓴 구절)
+  - improvement(개선) → "wave" (빨강 물결 밑줄, 어색한 표현)
+  - error(오류) → "circle" (빨강 동그라미, 사실·논리·어법 오류)
+  - 삭제할 표현 → "strike" (사선)
+  - 글자를 끼워 넣어야 할 곳 → "insert" (∨표시 + 위에 교정글씨)
+  - 짧은 체크만 → "check"
+- **correction**: 학생 글자 옆·행간에 빨간 작은 손글씨로 써 줄 **짧은** 교정(권장 12자 이내). 예: "→ 궤를 같이 한다", "삭제", "(마) 추가", "✓". 길게 설명할 말은 correction이 아니라 text(여백 번호 코멘트)에 쓰세요.
+- **text**: 여백에 번호 달아 보여 줄 긴 코멘트(기존과 동일). 진단·대안 2~3개·득점포인트 연결.
+
+원칙: 표현 교정은 글자 위에 직접(wave+correction), 구조적 누락은 여백 번호 코멘트(text)로. 칭찬도 반드시 밑줄(underline)로 글자 위에 표시. 빈 원고지가 없을 정도로 꼼꼼히.
+
 ## 출력 형식 (JSON)
 {
   "answer_outline": "학생 답안 전개 요약 (2~3문장)",
@@ -126,6 +143,9 @@ ${getTeachingMethodologyContext()}
       "y_position": 0.1,
       "para": 0,
       "quote": "마킹할 정확한 구절",
+      "box": { "x": 0.12, "y": 0.34, "w": 0.4, "h": 0.03 },
+      "mark": "wave",
+      "correction": "→ 궤를 같이 한다",
       "text": "코멘트 내용",
       "type": "praise|improvement|error|suggestion"
     }
@@ -149,9 +169,11 @@ ${getTeachingMethodologyContext()}
 
 margin_comments 규칙:
 - type은 반드시 praise/improvement/error/suggestion 중 하나
-- y_position은 0.0~1.0 (페이지 내 세로 위치 비율)
+- y_position은 0.0~1.0 (페이지 내 세로 위치 비율) — box가 있으면 box.y와 일치시킬 것
+- box는 이미지 위 직접 마킹 좌표(정규화 0~1). 좌표 확신이 없으면 생략(우측 여백 폴백)
+- mark는 underline/wave/circle/strike/insert/check 중 하나(없으면 type에서 자동 결정)
+- correction은 글자 옆에 쓸 짧은 손글씨 교정(12자 이내 권장). 길면 생략하고 text에만
 - para는 답안 문단 인덱스(0부터), quote는 그 문단 안의 정확한 구절
-- para+quote가 있으면 원고지 PDF에서 해당 구절 위에 마킹(praise=밑줄+체크, improvement=물결, error=동그라미, suggestion=점선밑줄)이 그려진다
 - quote는 문단 안에서 유일하게 식별되는 충분한 길이의 구절을 선택할 것`;
 }
 
@@ -159,6 +181,7 @@ export function buildCorrectionUserPrompt(params: {
   examText: string;
   rubric?: RubricItem[];
   questionNumber?: number;
+  answerText?: string;
 }): string {
   let prompt = `## 시험 원문\n${params.examText}\n\n`;
 
@@ -170,7 +193,13 @@ export function buildCorrectionUserPrompt(params: {
     prompt += `이 답안은 문제 ${params.questionNumber}에 대한 답안입니다.\n\n`;
   }
 
-  prompt += `위 시험의 채점기준에 따라 학생 답안을 첨삭해주세요. 이미지에서 답안을 읽고, 홍시표T 스타일로 꼼꼼하게 첨삭하세요.`;
+  if (params.answerText) {
+    prompt += `## 학생 답안(텍스트)\n${params.answerText}\n\n`;
+    prompt += `위 시험의 채점기준에 따라 학생 답안을 첨삭해주세요. 홍시표T 스타일로 꼼꼼하게 첨삭하세요.
+이 답안은 원고지에 직접 마킹됩니다. 각 margin_comment의 quote는 위 "학생 답안(텍스트)"에서 **글자 그대로 정확히 복사**하세요(띄어쓰기·문장부호 포함). box 좌표는 사용하지 말고 quote로만 위치를 지정합니다.`;
+  } else {
+    prompt += `위 시험의 채점기준에 따라 학생 답안을 첨삭해주세요. 이미지에서 답안을 읽고, 홍시표T 스타일로 꼼꼼하게 첨삭하세요.`;
+  }
 
   return prompt;
 }

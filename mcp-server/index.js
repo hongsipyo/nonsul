@@ -482,7 +482,31 @@ server.tool(
         .single();
     }
     if (result.error) return { content: [{ type: "text", text: `오류: ${result.error.message}` }] };
-    return { content: [{ type: "text", text: `${type} 저장 완료: ${result.data.id}` }] };
+    return { content: [{ type: "text", text: `${type} 저장 완료: ${result.data.id}\n→ generate_process_pdf(material_id:"${result.data.id}")로 프로세스 양식 PDF를 뽑을 수 있다.` }] };
+  }
+);
+
+server.tool(
+  "generate_process_pdf",
+  "저장된 자료(generated_materials)를 프로세스 실양식 PDF로 렌더해 버킷에 저장하고 공개 URL을 반환. save_material 직후 호출하면 채팅·데스크탑·코워크 어디서든 인쇄용 PDF를 얻는다(실폰트 경기천년바탕/학교안심B·실로고·폰트슬롯). 현재 '해설지' 지원, 채점기준표·첨삭은 후속.",
+  {
+    material_id: z.string().describe("generated_materials UUID — save_material이 반환한 id"),
+    type: z.enum(["해설지"]).optional().default("해설지").describe("자료 유형(현재 해설지)"),
+  },
+  async ({ material_id, type }) => {
+    const base = (process.env.NONSUL_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+    try {
+      const res = await fetch(`${base}/api/process-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: type || "해설지", materialId: material_id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { content: [{ type: "text", text: `PDF 생성 실패(${res.status}): ${data.error || "알 수 없음"}` }] };
+      return { content: [{ type: "text", text: `${data.type || type} PDF 생성 완료\n공개 URL: ${data.url}\n버킷 경로: ${data.path}` }] };
+    } catch (e) {
+      return { content: [{ type: "text", text: `접속 실패: ${e.message}\nNONSUL_BASE_URL=${base} — 웹앱(dev 서버 또는 배포)이 떠있는지 확인. 데스크탑 MCP 설정에 배포 URL을 env로 넣으면 항상 작동.` }] };
+    }
   }
 );
 

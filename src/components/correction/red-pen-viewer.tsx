@@ -16,6 +16,8 @@ interface RedPenViewerProps {
   brand?: '프로세스' | '독립';
   studentName?: string;
   examTitle?: string;
+  /** 서버(sharp+SVG)에서 미리 합성한 빨간펜 마킹 이미지 URL — 있으면 이걸 우선 표시 */
+  correctedImageUrl?: string;
 }
 
 export function RedPenViewer({
@@ -29,6 +31,7 @@ export function RedPenViewer({
   brand = '프로세스',
   studentName,
   examTitle,
+  correctedImageUrl,
 }: RedPenViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rendering, setRendering] = useState(false);
@@ -85,10 +88,49 @@ export function RedPenViewer({
   };
 
   useEffect(() => {
-    if (showOverlay && pageComments.length > 0) {
+    if (!correctedImageUrl && showOverlay && pageComments.length > 0) {
       renderAnnotation();
     }
-  }, [showOverlay, imageUrl]);
+  }, [showOverlay, imageUrl, correctedImageUrl]);
+
+  // ── 서버 마킹본이 있으면 그걸 그대로 표시(인쇄용 산출물 = 화면 일치) ──
+  if (correctedImageUrl) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-500">답안 {imagePage}페이지 · 빨간펜</span>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowOverlay(!showOverlay)}
+              className="text-xs h-7"
+            >
+              {showOverlay ? (
+                <><EyeOff className="h-3 w-3 mr-1" />원본</>
+              ) : (
+                <><Eye className="h-3 w-3 mr-1" />빨간펜</>
+              )}
+            </Button>
+            <a href={correctedImageUrl} download={`${studentName || '학생'}_${examTitle || '첨삭'}_빨간펜_p${imagePage}.png`}>
+              <Button variant="ghost" size="sm" className="text-xs h-7">
+                <Download className="h-3 w-3 mr-1" />
+                이미지 저장
+              </Button>
+            </a>
+          </div>
+        </div>
+        <div className="border rounded-lg overflow-hidden bg-white">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={showOverlay ? correctedImageUrl : imageUrl}
+            alt={`답안 ${imagePage}페이지 빨간펜`}
+            className="w-full h-auto"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">

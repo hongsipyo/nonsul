@@ -49,6 +49,8 @@ interface CorrectionData {
     deductions: { name: string; count: number; deduction: number }[];
     subtotal: number;
   }[];
+  corrected_images?: { page: number; storage_path: string; url: string }[];
+  corrected_pdf_path?: string;
   student_answers?: {
     student_name?: string;
     student_school?: string;
@@ -226,6 +228,15 @@ export default function CorrectionDetailPage() {
   if (!data) return <div className="p-6">첨삭을 찾을 수 없습니다.</div>;
 
   const comments = data.margin_comments || [];
+  // 빨간펜 PDF 공개 URL: corrected 이미지 URL의 버킷 base에서 파일명만 교체
+  const correctedPdfUrl = (() => {
+    if (!data.corrected_pdf_path) return undefined;
+    const sample = data.corrected_images?.[0]?.url;
+    if (!sample) return undefined;
+    const idx = sample.indexOf('/corrected-files/');
+    if (idx < 0) return undefined;
+    return sample.slice(0, idx + '/corrected-files/'.length) + data.corrected_pdf_path;
+  })();
   const praiseComments = comments.filter((c) => c.type === 'praise');
   const improvementComments = comments.filter((c) => c.type === 'improvement');
   const errorComments = comments.filter((c) => c.type === 'error');
@@ -293,6 +304,14 @@ export default function CorrectionDetailPage() {
               <Pencil className="h-4 w-4 mr-1" />
               수정
             </Button>
+            {data.corrected_pdf_path && correctedPdfUrl && (
+              <a href={correctedPdfUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="border-red-300 text-red-600 hover:bg-red-50">
+                  <Download className="h-4 w-4 mr-1" />
+                  빨간펜 PDF
+                </Button>
+              </a>
+            )}
             <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
               <Download className="h-4 w-4 mr-1" />
               PDF
@@ -462,6 +481,7 @@ export default function CorrectionDetailPage() {
                     <RedPenViewer
                       imageUrl={img.url}
                       imagePage={img.page}
+                      correctedImageUrl={data.corrected_images?.find((ci) => ci.page === img.page)?.url}
                       comments={comments.map((c) => ({
                         text: c.text,
                         type: c.type,

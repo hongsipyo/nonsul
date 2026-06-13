@@ -320,6 +320,24 @@ export const CORRECTION_SCHEMA: ResponseSchema = {
           y_position: { type: SchemaType.NUMBER },
           text: { type: SchemaType.STRING },
           type: { type: SchemaType.STRING },
+          quote: { type: SchemaType.STRING, nullable: true },
+          // ── 학생 원고지 위 직접 마킹 좌표 (정규화 0~1, 이미지 기준) ──
+          // box: 마킹할 구절을 감싸는 사각형. x,y = 좌상단, w,h = 폭/높이.
+          box: {
+            type: SchemaType.OBJECT,
+            nullable: true,
+            properties: {
+              x: { type: SchemaType.NUMBER },
+              y: { type: SchemaType.NUMBER },
+              w: { type: SchemaType.NUMBER },
+              h: { type: SchemaType.NUMBER },
+            },
+            required: ['x', 'y', 'w', 'h'],
+          },
+          // mark: 그 자리에 그을 빨간펜 표시 종류
+          mark: { type: SchemaType.STRING, nullable: true }, // underline|wave|circle|strike|insert|check
+          // correction: 학생 글자 옆·행간에 빨간 손글씨로 써줄 짧은 교정 (없으면 표시만)
+          correction: { type: SchemaType.STRING, nullable: true },
         },
         required: ['id', 'page', 'y_position', 'text', 'type'],
       },

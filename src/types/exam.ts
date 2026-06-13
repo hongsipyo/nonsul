@@ -110,6 +110,15 @@ export interface Student {
   updated_at: string;
 }
 
+/** 빨간펜 표시 종류 — 학생 원고지 위에 긋는 마킹 */
+export type RedPenMark =
+  | 'underline' // 칭찬: 밑줄 (+체크)
+  | 'wave'      // 개선: 물결 밑줄
+  | 'circle'    // 오류: 동그라미
+  | 'strike'    // 삭제: 사선
+  | 'insert'    // 삽입: ∨표시 + 위에 교정글씨
+  | 'check';    // 체크 표시만
+
 export interface MarginComment {
   id: string;
   page: number;
@@ -118,6 +127,10 @@ export interface MarginComment {
   type: 'improvement' | 'praise' | 'error' | 'suggestion';
   para?: number;          // 답안 문단 인덱스 (0부터) — 원고지 마킹 위치용
   quote?: string;         // 해당 문단 내 정확한 구절 — 마킹이 그려질 앵커
+  // ── 학생 답안 이미지 위 직접 마킹 (제미나이식 빨간펜) ──
+  box?: { x: number; y: number; w: number; h: number }; // 정규화 0~1, 이미지 기준 좌상단+크기
+  mark?: RedPenMark;       // 빨간펜 표시 종류
+  correction?: string;     // 행간·여백에 써줄 짧은 빨간 손글씨 교정
 }
 
 export interface Annotation {

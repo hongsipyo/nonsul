@@ -110,21 +110,34 @@ export default function ExamDetailPage() {
 
   const handleDownloadExplanationPDF = async () => {
     if (!explanationResult) return;
-    const { generateExplanationPDF } = await import('@/lib/export/explanation-pdf');
-    const doc = await generateExplanationPDF({
-      examTitle: exam?.title || '시험',
-      university: exam?.university || undefined,
-      brand: '프로세스',
-      // 새 형식
-      overview: explanationResult.overview,
-      passage_analyses: explanationResult.passage_analyses,
-      solutions: explanationResult.solutions,
-      scoring_criteria: explanationResult.scoring_criteria,
-      model_answers: explanationResult.model_answers,
-      // 기존 형식 fallback
-      sections: explanationResult.sections,
+    // 서버사이드 렌더(실폰트·실로고) — 클라 번들에서 fs/폰트 제거
+    const res = await fetch('/api/explanations/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        examTitle: exam?.title || '시험',
+        university: exam?.university || undefined,
+        brand: '프로세스',
+        overview: explanationResult.overview,
+        passage_analyses: explanationResult.passage_analyses,
+        solutions: explanationResult.solutions,
+        scoring_criteria: explanationResult.scoring_criteria,
+        model_answers: explanationResult.model_answers,
+        sections: explanationResult.sections,
+      }),
     });
-    doc.save(`${exam?.title || '해설지'}_해설.pdf`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || '해설지 PDF 생성 실패');
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${exam?.title || '해설지'}_해설.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleProofread = async (label: string, text: string) => {

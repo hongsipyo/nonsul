@@ -1,32 +1,73 @@
 /**
- * 해설지 PDF 내보내기
- * 프로세스 논술학원 실물 교재 형식
+ * 해설지 PDF 내보내기 — 프로세스 논술학원 실물 교재 형식
+ *
+ * 폰트: 본문=경기천년바탕(실양식 폰트), 제목/라벨=학교안심 바른돋움 B(윤고딕 패밀리,
+ *       한윤고딕760 임시 슬롯). 로고=실로고 PNG. Pretendard(짝퉁 고딕)·텍스트로고 폐기.
+ * 환경무관(isomorphic): 서버(Node)=fs 로드, 브라우저=fetch. 클라이언트 호출처와
+ *       서버 라우트(MCP generate_process_pdf)가 같은 함수를 공유한다.
+ * ★ 폰트 슬롯: 한컴 HaanYoonGothic760 도착 시 FONT_SLOTS.heading 1줄만 교체하면 100% 일치.
  *
  * 레이아웃:
- * - 표지: 학년도/반/강 + "해 설" + 대학 + 브랜드
+ * - 표지: 학년도/반/강 + "해 설" + 대학 + 실로고
  * - 유의사항 페이지
  * - 본문: 논제분석 개요표 → 제시문분석 → (문제별: 문제해결 → 채점기준표 → 예시답안)
  * - 매 페이지: 우상단 헤더, 좌측 세로 워터마크, 하단 페이지번호+브랜드
  */
 
-import jsPDF from 'jspdf';
+import type jsPDFType from 'jspdf';
 
-async function loadPretendardFont(doc: jsPDF) {
-  const [regularBuf, boldBuf] = await Promise.all([
-    fetch('/fonts/Pretendard-Regular.ttf').then((r) => r.arrayBuffer()),
-    fetch('/fonts/Pretendard-Bold.ttf').then((r) => r.arrayBuffer()),
-  ]);
-  const toBase64 = (buf: ArrayBuffer) => {
-    const bytes = new Uint8Array(buf);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
-  };
-  doc.addFileToVFS('Pretendard-Regular.ttf', toBase64(regularBuf));
-  doc.addFont('Pretendard-Regular.ttf', 'Pretendard', 'normal');
-  doc.addFileToVFS('Pretendard-Bold.ttf', toBase64(boldBuf));
-  doc.addFont('Pretendard-Bold.ttf', 'Pretendard', 'bold');
-  doc.setFont('Pretendard', 'normal');
+// ─── 폰트 슬롯 (한컴 도착 시 heading 1줄만 교체) ───
+const FONT_SLOTS = {
+  // 본문 — 경기천년바탕(무료·실양식 폰트)
+  bodyRegular: { file: 'GyeonggiBatang-Regular.ttf', family: 'ProcessBody', style: 'normal' as const },
+  bodyBold: { file: 'GyeonggiBatang-Bold.ttf', family: 'ProcessBody', style: 'bold' as const },
+  // 제목/라벨 — 학교안심 바른돋움 B (윤고딕 패밀리, 한윤고딕760 자리). ← 한컴 오면 file만 교체
+  heading: { file: 'HakgyoansimBareondotumB.ttf', family: 'ProcessHead', style: 'normal' as const },
+};
+const BODY = 'ProcessBody';
+const HEAD = 'ProcessHead';
+const LOGO_PATH = 'logos/process-logo.png';
+
+/** 환경무관 에셋 바이트 로더 (public/ 하위 경로) */
+async function loadPublicBytes(publicPath: string): Promise<ArrayBuffer> {
+  if (typeof window === 'undefined') {
+    const { readFile } = await import('fs/promises');
+    const { join } = await import('path');
+    const buf = await readFile(join(process.cwd(), 'public', publicPath));
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  }
+  return fetch('/' + publicPath).then((r) => r.arrayBuffer());
+}
+
+function bytesToBase64(buf: ArrayBuffer): string {
+  if (typeof window === 'undefined') return Buffer.from(buf).toString('base64');
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
+/** 경기천년바탕(본문)+학교안심B(제목) 임베드 + 실로고 dataURL 반환 */
+async function loadFontsAndLogo(doc: jsPDFType): Promise<{ logoDataUrl: string | null }> {
+  const slots = [FONT_SLOTS.bodyRegular, FONT_SLOTS.bodyBold, FONT_SLOTS.heading];
+  const bufs = await Promise.all(slots.map((s) => loadPublicBytes('fonts/' + s.file)));
+  slots.forEach((s, i) => {
+    doc.addFileToVFS(s.file, bytesToBase64(bufs[i]));
+    doc.addFont(s.file, s.family, s.style);
+  });
+  doc.setFont(BODY, 'normal');
+
+  let logoDataUrl: string | null = null;
+  try {
+    const logoBuf = await loadPublicBytes(LOGO_PATH);
+    logoDataUrl = `data:image/png;base64,${bytesToBase64(logoBuf)}`;
+  } catch {
+    logoDataUrl = null; // 로고 없으면 브랜드 텍스트로 폴백
+  }
+  return { logoDataUrl };
 }
 
 // ─── 타입 ───
@@ -104,9 +145,10 @@ export interface ExplanationPDFData {
 
 // ─── PDF 생성 ───
 
-export async function generateExplanationPDF(data: ExplanationPDFData): Promise<jsPDF> {
+export async function generateExplanationPDF(data: ExplanationPDFData): Promise<jsPDFType> {
+  const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  await loadPretendardFont(doc);
+  const { logoDataUrl } = await loadFontsAndLogo(doc);
 
   const PW = 210; // page width
   const PH = 297; // page height
@@ -129,13 +171,17 @@ export async function generateExplanationPDF(data: ExplanationPDFData): Promise<
   }
 
   function setN(size = 10) {
-    doc.setFont('Pretendard', 'normal'); doc.setFontSize(size); doc.setTextColor(30, 30, 30);
+    doc.setFont(BODY, 'normal'); doc.setFontSize(size); doc.setTextColor(30, 30, 30);
   }
   function setB(size = 10) {
-    doc.setFont('Pretendard', 'bold'); doc.setFontSize(size); doc.setTextColor(30, 30, 30);
+    doc.setFont(BODY, 'bold'); doc.setFontSize(size); doc.setTextColor(30, 30, 30);
+  }
+  /** 제목·라벨용 (학교안심B = 윤고딕 패밀리, 한윤고딕760 슬롯) */
+  function setH(size = 13) {
+    doc.setFont(HEAD, 'normal'); doc.setFontSize(size); doc.setTextColor(30, 30, 30);
   }
   function setGray(size = 10) {
-    doc.setFont('Pretendard', 'normal'); doc.setFontSize(size); doc.setTextColor(120, 120, 120);
+    doc.setFont(BODY, 'normal'); doc.setFontSize(size); doc.setTextColor(120, 120, 120);
   }
 
   function hline(x1: number, x2: number, atY: number, w = 0.3) {
@@ -162,7 +208,7 @@ export async function generateExplanationPDF(data: ExplanationPDFData): Promise<
     checkPage(18);
     hline(ML, PW - MR, y, 0.6);
     y += 6;
-    setB(13);
+    setH(13);
     doc.text(title, ML + 1, y);
     y += 3;
     hlineLight(ML, PW - MR, y);
@@ -170,10 +216,16 @@ export async function generateExplanationPDF(data: ExplanationPDFData): Promise<
   }
 
   // ========== 1. 표지 ==========
-  y = 50;
+  // 상단 실로고 (460x100 비율 유지)
+  if (logoDataUrl) {
+    const logoW = 56;
+    const logoH = logoW * (100 / 460);
+    doc.addImage(logoDataUrl, 'PNG', (PW - logoW) / 2, 34, logoW, logoH);
+  }
+  y = 64;
 
   if (data.year) {
-    setB(16);
+    setH(16);
     doc.text(`${data.year}학년도 수시`, PW / 2, y, { align: 'center' });
     y += 22;
   }
@@ -181,18 +233,18 @@ export async function generateExplanationPDF(data: ExplanationPDFData): Promise<
   // 반/강 정보
   const classLine = [data.className, data.lessonNumber].filter(Boolean).join(' ');
   if (classLine) {
-    setB(22);
+    setH(22);
     doc.text(classLine, PW / 2, y, { align: 'center' });
     y += 18;
   } else {
-    setB(22);
+    setH(22);
     const tl = doc.splitTextToSize(data.examTitle, CW);
     doc.text(tl, PW / 2, y, { align: 'center' });
     y += tl.length * 10 + 18;
   }
 
   // "해 설"
-  setB(20);
+  setH(20);
   doc.text('해  설', PW / 2, y, { align: 'center' });
   y += 20;
 
@@ -204,9 +256,13 @@ export async function generateExplanationPDF(data: ExplanationPDFData): Promise<
     doc.text(data.university, PW / 2, y, { align: 'center' });
   }
 
-  // 하단 브랜드
-  setGray(10);
-  doc.text(`ⓟ ${brandFull}`, PW / 2, 255, { align: 'center' });
+  // 하단 브랜드 (실로고 + 학원명)
+  if (logoDataUrl) {
+    const lw = 30, lh = lw * (100 / 460);
+    doc.addImage(logoDataUrl, 'PNG', PW / 2 - lw / 2, 250, lw, lh);
+  }
+  setGray(9);
+  doc.text(brandFull, PW / 2, 250 + (logoDataUrl ? 11 : 0), { align: 'center' });
 
   // ========== 2. 유의사항 ==========
   newPage();
@@ -430,12 +486,12 @@ export async function generateExplanationPDF(data: ExplanationPDFData): Promise<
     if (i <= coverPages) {
       // 표지/유의사항: 브랜드만
       setGray(8);
-      doc.text(`ⓟ ${brandShort}`, PW - MR, PH - 10, { align: 'right' });
+      doc.text(brandShort, PW - MR, PH - 10, { align: 'right' });
       continue;
     }
 
     // 우상단 헤더
-    doc.setFont('Pretendard', 'normal');
+    doc.setFont(BODY, 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(160, 160, 160);
     doc.text(headerRight, PW - MR, 13, { align: 'right' });
@@ -443,7 +499,7 @@ export async function generateExplanationPDF(data: ExplanationPDFData): Promise<
     // 좌측 세로 워터마크
     doc.setFontSize(8);
     doc.setTextColor(210, 210, 210);
-    doc.text(`ⓟ ${brandShort}`, 8, PH / 2, { angle: 90 });
+    doc.text(brandShort, 8, PH / 2, { angle: 90 });
 
     // 하단 좌: 페이지 번호
     doc.setFontSize(8);
@@ -451,7 +507,7 @@ export async function generateExplanationPDF(data: ExplanationPDFData): Promise<
     doc.text(`${i - coverPages}`, ML, PH - 10);
 
     // 하단 우: 브랜드
-    doc.text(`ⓟ ${brandShort}`, PW - MR, PH - 10, { align: 'right' });
+    doc.text(brandShort, PW - MR, PH - 10, { align: 'right' });
   }
 
   return doc;
