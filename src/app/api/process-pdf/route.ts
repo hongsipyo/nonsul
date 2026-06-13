@@ -68,7 +68,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ url: urlData.publicUrl, path, type: '해설지' });
     }
 
-    return NextResponse.json({ error: `지원하지 않는 type: ${type} (현재 '해설지'만 — 채점기준표·첨삭은 후속)` }, { status: 400 });
+    if (type === '첨삭') {
+      // 첨삭은 corrections.generate가 이미 빨간펜 PDF를 corrected-files에 만들어 둠 → 그 URL 반환
+      const { data: corr } = await supabase
+        .from('corrections')
+        .select('corrected_pdf_path')
+        .eq('id', materialId)
+        .single();
+      if (!corr?.corrected_pdf_path) {
+        return NextResponse.json({ error: '첨삭 PDF가 아직 없습니다 (corrections generate를 먼저 실행)' }, { status: 404 });
+      }
+      const { data: urlData } = supabase.storage.from('corrected-files').getPublicUrl(corr.corrected_pdf_path as string);
+      return NextResponse.json({ url: urlData.publicUrl, path: corr.corrected_pdf_path, type: '첨삭' });
+    }
+
+    return NextResponse.json({ error: `지원하지 않는 type: ${type} (현재 '해설지'·'첨삭' — 채점기준표·ppt는 후속)` }, { status: 400 });
   } catch (err) {
     const message = err instanceof Error ? err.message : '프로세스 PDF 생성 오류';
     return NextResponse.json({ error: message }, { status: 500 });

@@ -488,10 +488,10 @@ server.tool(
 
 server.tool(
   "generate_process_pdf",
-  "저장된 자료(generated_materials)를 프로세스 실양식 PDF로 렌더해 버킷에 저장하고 공개 URL을 반환. save_material 직후 호출하면 채팅·데스크탑·코워크 어디서든 인쇄용 PDF를 얻는다(실폰트 경기천년바탕/학교안심B·실로고·폰트슬롯). 현재 '해설지' 지원, 채점기준표·첨삭은 후속.",
+  "저장된 자료를 프로세스 실양식 PDF로 만들어 공개 URL을 반환. 채팅·데스크탑·코워크 어디서든 인쇄용 PDF를 얻는다(실폰트 경기천년바탕/학교안심B·실로고·폰트슬롯). 해설지=save_material 직후 그 id로 호출. 첨삭=corrections generate가 만든 빨간펜 PDF를 correction id로 가져온다. 채점기준표·ppt는 후속.",
   {
-    material_id: z.string().describe("generated_materials UUID — save_material이 반환한 id"),
-    type: z.enum(["해설지"]).optional().default("해설지").describe("자료 유형(현재 해설지)"),
+    material_id: z.string().describe("해설지=generated_materials UUID(save_material 반환), 첨삭=correction UUID"),
+    type: z.enum(["해설지", "첨삭"]).optional().default("해설지").describe("자료 유형: 해설지 | 첨삭"),
   },
   async ({ material_id, type }) => {
     const base = (process.env.NONSUL_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
