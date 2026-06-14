@@ -25,15 +25,24 @@ export type MaterialType = '해설지' | '채점기준표' | 'ppt';
 export type BrandType = '프로세스' | '독립';
 export type ExamType = '비교분석' | '비판평가' | '적용분석' | '종합분석' | '요약';
 
+export interface PassageFigure {
+  kind: string;                // 'table' | 'graph'
+  caption?: string;
+  page_number?: number;
+  bbox: { x: number; y: number; w: number; h: number }; // 해당 page 내 정규화 0~1
+  url?: string;                // 크롭된 표/그래프 이미지 URL (parse가 채움)
+}
+
 export interface Passage {
   label: string;       // (가), (나), (다)...
   text: string;
   source?: string;
   has_table?: boolean;
   has_graph?: boolean;
-  table_markdown?: string;     // markdown 표
+  table_markdown?: string;     // markdown 표 (폴백)
   page_number?: number;        // PDF 원본 페이지 번호
-  page_image_url?: string;     // 해당 페이지 이미지 URL
+  page_image_url?: string;     // 해당 페이지 이미지 URL (폴백)
+  figures?: PassageFigure[];   // ★표/그래프 원본 크롭 이미지 — 텍스트화 대신 이걸 렌더
 }
 
 export interface Question {

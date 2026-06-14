@@ -370,6 +370,56 @@ export async function POST(
       page_image_url: p.page_number ? pageImageUrls[p.page_number] || null : null,
     }));
 
+    // ★표/그래프 크롭 — figures.bbox(정규화)로 페이지 이미지에서 표 영역만 잘라 저장
+    //   텍스트로 뜯어 깨지는 것 대신 원본 크롭 이미지로 렌더하기 위함.
+    const pageBufCache: Record<number, Buffer | null> = {};
+    async function getPageBuf(page: number): Promise<Buffer | null> {
+      if (page in pageBufCache) return pageBufCache[page];
+      const url = pageImageUrls[page];
+      if (!url) return (pageBufCache[page] = null);
+      try {
+        const resp = await fetch(url);
+        const buf = Buffer.from(await resp.arrayBuffer());
+        return (pageBufCache[page] = buf);
+      } catch {
+        return (pageBufCache[page] = null);
+      }
+    }
+    for (const p of passages) {
+      if (!Array.isArray(p.figures) || !p.figures.length) continue;
+      for (let fi = 0; fi < p.figures.length; fi++) {
+        const fig = p.figures[fi];
+        const page = fig.page_number || p.page_number;
+        if (!page || !fig.bbox) continue;
+        const pageBuf = await getPageBuf(page);
+        if (!pageBuf) continue;
+        try {
+          const meta = await sharp(pageBuf).metadata();
+          const W = meta.width || 0, H = meta.height || 0;
+          if (!W || !H) continue;
+          // bbox에 약간 여유(padding) — 제목·범례 잘림 방지
+          const pad = 0.01;
+          const left = Math.max(0, Math.round((fig.bbox.x - pad) * W));
+          const top = Math.max(0, Math.round((fig.bbox.y - pad) * H));
+          const width = Math.min(W - left, Math.round((fig.bbox.w + pad * 2) * W));
+          const height = Math.min(H - top, Math.round((fig.bbox.h + pad * 2) * H));
+          if (width < 10 || height < 10) continue;
+          const crop = await sharp(pageBuf).extract({ left, top, width, height }).png().toBuffer();
+          const safeLabel = String(p.label || 'p').replace(/[^0-9A-Za-z가-힣]/g, '');
+          const fname = `exam-figures/${examId}/page${page}_${safeLabel}_${fi}.png`;
+          const { error: cropErr } = await supabase.storage
+            .from('exam-pdfs')
+            .upload(fname, crop, { contentType: 'image/png', upsert: true });
+          if (!cropErr) {
+            const { data: u } = supabase.storage.from('exam-pdfs').getPublicUrl(fname);
+            fig.url = u?.publicUrl || undefined;
+          }
+        } catch (e) {
+          console.error(`figure 크롭 실패 (${p.label} #${fi}):`, e);
+        }
+      }
+    }
+
     const { error: updateError } = await supabase
       .from('exams')
       .update({

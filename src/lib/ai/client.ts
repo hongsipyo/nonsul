@@ -272,6 +272,30 @@ export const EXAM_PARSE_SCHEMA: ResponseSchema = {
           has_graph: { type: SchemaType.BOOLEAN },
           table_markdown: { type: SchemaType.STRING, nullable: true },
           page_number: { type: SchemaType.NUMBER, nullable: true },
+          // 표/그래프 = 텍스트로 뜯지 말고 원본 영역을 크롭해 이미지로. bbox는 해당 page 내 정규화 0~1.
+          figures: {
+            type: SchemaType.ARRAY,
+            nullable: true,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                kind: { type: SchemaType.STRING }, // 'table' | 'graph'
+                caption: { type: SchemaType.STRING, nullable: true },
+                page_number: { type: SchemaType.NUMBER, nullable: true },
+                bbox: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    x: { type: SchemaType.NUMBER },
+                    y: { type: SchemaType.NUMBER },
+                    w: { type: SchemaType.NUMBER },
+                    h: { type: SchemaType.NUMBER },
+                  },
+                  required: ['x', 'y', 'w', 'h'],
+                },
+              },
+              required: ['kind', 'bbox'],
+            },
+          },
         },
         required: ['label', 'text'],
       },

@@ -422,30 +422,42 @@ export default function ExamDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {/* 원본 페이지 이미지 (표/그래프가 있는 경우) */}
-                  {(p.has_table || p.has_graph) && p.page_image_url && (
-                    <div className="border rounded-lg overflow-hidden bg-zinc-50">
-                      <div className="px-3 py-1.5 bg-zinc-100 text-xs text-zinc-500 font-medium flex items-center gap-1">
-                        <ImageIcon className="h-3 w-3" />
-                        원본 PDF (페이지 {p.page_number})
-                      </div>
-                      <img
-                        src={p.page_image_url}
-                        alt={`제시문 ${p.label} 원본`}
-                        className="w-full"
-                      />
+                  {/* ★표/그래프 크롭 이미지 (figures) — 텍스트로 안 뜯고 원본 영역만 잘라서 */}
+                  {p.figures && p.figures.filter((f) => f.url).length > 0 ? (
+                    <div className="space-y-2">
+                      {p.figures.filter((f) => f.url).map((f, fi) => (
+                        <div key={fi} className="border rounded-lg overflow-hidden bg-white">
+                          <div className="px-3 py-1.5 bg-zinc-100 text-xs text-zinc-500 font-medium flex items-center gap-1">
+                            {f.kind === 'graph' ? <ImageIcon className="h-3 w-3" /> : <Table2 className="h-3 w-3" />}
+                            {f.caption || (f.kind === 'graph' ? '그래프' : '표')}
+                          </div>
+                          <img src={f.url} alt={f.caption || '표/그래프'} className="w-full" />
+                        </div>
+                      ))}
                     </div>
-                  )}
-
-                  {/* 표 markdown */}
-                  {p.has_table && p.table_markdown && (
-                    <div className="border rounded-lg overflow-auto bg-zinc-50 p-3">
-                      <div className="text-xs text-zinc-500 font-medium mb-2 flex items-center gap-1">
-                        <Table2 className="h-3 w-3" />
-                        표 데이터 (텍스트)
-                      </div>
-                      <pre className="text-xs font-mono whitespace-pre-wrap">{p.table_markdown}</pre>
-                    </div>
+                  ) : (
+                    <>
+                      {/* 폴백: figures 크롭이 없으면 원본 페이지 전체 이미지 */}
+                      {(p.has_table || p.has_graph) && p.page_image_url && (
+                        <div className="border rounded-lg overflow-hidden bg-zinc-50">
+                          <div className="px-3 py-1.5 bg-zinc-100 text-xs text-zinc-500 font-medium flex items-center gap-1">
+                            <ImageIcon className="h-3 w-3" />
+                            원본 PDF (페이지 {p.page_number})
+                          </div>
+                          <img src={p.page_image_url} alt={`제시문 ${p.label} 원본`} className="w-full" />
+                        </div>
+                      )}
+                      {/* 폴백: 표 markdown */}
+                      {p.has_table && p.table_markdown && (
+                        <div className="border rounded-lg overflow-auto bg-zinc-50 p-3">
+                          <div className="text-xs text-zinc-500 font-medium mb-2 flex items-center gap-1">
+                            <Table2 className="h-3 w-3" />
+                            표 데이터 (텍스트)
+                          </div>
+                          <pre className="text-xs font-mono whitespace-pre-wrap">{p.table_markdown}</pre>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* 텍스트 */}

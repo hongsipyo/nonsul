@@ -47,10 +47,26 @@ async function loadLogoPNG(): Promise<string> {
   return 'data:image/png;base64,' + btoa(binary);
 }
 
+/** 임의 이미지 URL → dataURL (표/그래프 크롭 이미지 삽입용) */
+async function imgUrlToDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  const buf = await res.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  return 'data:image/png;base64,' + btoa(binary);
+}
+
 interface Passage {
   label: string;
   text: string;
   source?: string;
+  has_table?: boolean;
+  has_graph?: boolean;
+  page_image_url?: string;
+  page_number?: number;
+  figures?: { kind: string; caption?: string; url?: string }[];
 }
 
 interface Question {
@@ -307,6 +323,26 @@ export async function generateExamPaperPDF(data: ExamPaperPDFData): Promise<jsPD
         setB(10.5);
         doc.text(p.label, ML, y);
         y += 6;
+
+        // ★표/그래프 크롭 이미지 (figures) — 텍스트로 안 뜯고 원본 영역만. 없으면 page_image 폴백.
+        const figUrls = (p.figures || []).map((f) => f.url).filter(Boolean) as string[];
+        const imageUrls = figUrls.length ? figUrls : ((p.has_table || p.has_graph) && p.page_image_url ? [p.page_image_url] : []);
+        for (const url of imageUrls) {
+          try {
+            const dataUrl = await imgUrlToDataUrl(url);
+            const props = doc.getImageProperties(dataUrl);
+            const maxW = CW - 8;
+            let w = maxW;
+            let h = (w * props.height) / props.width;
+            const maxH = 130; // mm — 한 페이지 넘지 않게
+            if (h > maxH) { h = maxH; w = (h * props.width) / props.height; }
+            checkPage(h + 6);
+            doc.addImage(dataUrl, 'PNG', ML + 4, y, w, h);
+            y += h + 4;
+          } catch (e) {
+            console.error('제시문 이미지 삽입 실패:', e);
+          }
+        }
 
         // 제시문 본문
         renderParagraph(p.text);
